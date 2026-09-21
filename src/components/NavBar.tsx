@@ -1,10 +1,11 @@
-export type Tab = 'dashboard' | 'log' | 'stats' | 'exercises'
+export type Tab = 'dashboard' | 'log' | 'stats' | 'exercises' | 'data'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'dashboard', label: 'Score' },
   { id: 'log', label: 'Loggen' },
   { id: 'stats', label: 'Statistieken' },
   { id: 'exercises', label: 'Oefeningen' },
+  { id: 'data', label: 'Data' },
 ]
 
 export function NavBar({ active, onChange }: { active: Tab; onChange: (tab: Tab) => void }) {

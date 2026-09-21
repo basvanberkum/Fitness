@@ -12,7 +12,7 @@ export interface LogEntry {
   note?: string
   /** De originele ingesproken/getypte tekst, voor controle achteraf */
   rawInput?: string
-  source: 'voice' | 'manual'
+  source: 'voice' | 'manual' | 'import'
 }
 
 const STORAGE_KEY = 'fitness-tracker:logs:v1'
@@ -44,6 +44,38 @@ export function addLog(entry: Omit<LogEntry, 'id'>): LogEntry {
   logs.push(newEntry)
   writeRaw(logs)
   return newEntry
+}
+
+function dedupeKey(entry: Pick<LogEntry, 'exerciseId' | 'date' | 'sets'>): string {
+  // Datum afgerond op de minuut, zodat kleine tijdsverschillen bij export/import geen ruis geven.
+  const minuteDate = entry.date.slice(0, 16)
+  return `${entry.exerciseId}|${minuteDate}|${JSON.stringify(entry.sets)}`
+}
+
+/**
+ * Voegt meerdere logs in één keer toe (bijv. bij een import), en slaat exacte
+ * duplicaten van al bestaande logs over. Retourneert hoeveel er zijn
+ * toegevoegd en hoeveel er zijn overgeslagen als duplicaat.
+ */
+export function bulkAddLogs(entries: Omit<LogEntry, 'id'>[]): { added: number; skippedDuplicates: number } {
+  const logs = readRaw()
+  const existingKeys = new Set(logs.map(dedupeKey))
+  let added = 0
+  let skippedDuplicates = 0
+
+  for (const entry of entries) {
+    const key = dedupeKey(entry)
+    if (existingKeys.has(key)) {
+      skippedDuplicates++
+      continue
+    }
+    existingKeys.add(key)
+    logs.push({ ...entry, id: crypto.randomUUID() })
+    added++
+  }
+
+  writeRaw(logs)
+  return { added, skippedDuplicates }
 }
 
 export function deleteLog(id: string) {

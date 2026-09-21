@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Dashboard } from './components/Dashboard'
+import { DataManagement } from './components/DataManagement'
 import { ExerciseBrowser } from './components/ExerciseBrowser'
 import { LogWorkout } from './components/LogWorkout'
 import { NavBar, type Tab } from './components/NavBar'
@@ -26,6 +27,7 @@ export default function App() {
         {tab === 'log' && <LogWorkout logs={logs} />}
         {tab === 'stats' && <Stats logs={logs} />}
         {tab === 'exercises' && <ExerciseBrowser logs={logs} />}
+        {tab === 'data' && <DataManagement />}
       </main>
 
       <NavBar active={tab} onChange={setTab} />
