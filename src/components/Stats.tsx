@@ -12,10 +12,12 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { CATEGORY_LABELS, EXERCISES, findExerciseById } from '../data/exercises'
+import { CATEGORY_LABELS } from '../data/exercises'
 import { buildCategoryVolumeSeries, daysSinceEarliestLog, granularityForRangeDays } from '../lib/chartData'
 import { getChartPalette, statusColorFromPalette } from '../lib/chartColors'
+import { findExercise } from '../lib/exerciseCatalog'
 import { computeMuscleScores } from '../lib/scoring'
+import { useAllExercises } from '../lib/useAllExercises'
 import { useDarkMode } from '../lib/useDarkMode'
 import type { LogEntry } from '../lib/storage'
 
@@ -38,6 +40,7 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
   const palette = useMemo(() => getChartPalette(isDark), [isDark])
   const now = useMemo(() => new Date(), [])
   const [range, setRange] = useState<RangeKey>('30d')
+  const allExercises = useAllExercises()
 
   const rangeDays = useMemo(() => {
     if (range === '7d') return 7
@@ -62,7 +65,7 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
     return [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
-      .map(([exerciseId, sets]) => ({ exercise: findExerciseById(exerciseId), sets }))
+      .map(([exerciseId, sets]) => ({ exercise: findExercise(exerciseId), sets }))
   }, [logs, rangeDays, now])
 
   const tickStyle = { fill: palette.textMuted, fontSize: 11 }
@@ -202,7 +205,7 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
       </section>
 
       <p className="text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-        {EXERCISES.length} oefeningen beschikbaar in de bibliotheek
+        {allExercises.length} oefeningen beschikbaar in de bibliotheek
       </p>
     </div>
   )

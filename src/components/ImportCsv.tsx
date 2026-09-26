@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
-import { CATEGORY_LABELS, EXERCISES, type ExerciseCategory } from '../data/exercises'
+import { CATEGORY_LABELS, type ExerciseCategory } from '../data/exercises'
 import { parseCsv, type ParsedCsv } from '../lib/csv'
+import { useAllExercises } from '../lib/useAllExercises'
 import { buildImportDraft, draftGroupsToLogEntries, type ColumnMapping, type ImportParseResult } from '../lib/importCsv'
 import { guessColumnMapping, matchExerciseByFreeText, IMPORT_FIELD_LABELS, type ImportField } from '../lib/importMapping'
 import { bulkAddLogs } from '../lib/storage'
 
 const REQUIRED_FIELDS: ImportField[] = ['date', 'exercise']
-const OPTIONAL_FIELDS: ImportField[] = ['weight', 'weightUnit', 'reps', 'setsCount', 'notes']
+const OPTIONAL_FIELDS: ImportField[] = ['weight', 'weightUnit', 'reps', 'setsCount', 'notes', 'workoutName']
 const CATEGORIES: ExerciseCategory[] = ['push', 'pull', 'legs', 'core']
 const SKIP = '__skip__'
 
@@ -21,6 +22,7 @@ export function ImportCsv() {
   const [exerciseChoice, setExerciseChoice] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<{ added: number; skippedDuplicates: number } | null>(null)
+  const allExercises = useAllExercises()
 
   async function handleFile(file: File) {
     setError(null)
@@ -225,7 +227,7 @@ export function ImportCsv() {
                   <option value={SKIP}>Overslaan</option>
                   {CATEGORIES.map((cat) => (
                     <optgroup key={cat} label={CATEGORY_LABELS[cat]}>
-                      {EXERCISES.filter((e) => e.category === cat).map((e) => (
+                      {allExercises.filter((e) => e.category === cat).map((e) => (
                         <option key={e.id} value={e.id}>
                           {e.name}
                         </option>

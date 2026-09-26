@@ -1,6 +1,7 @@
 export interface SetEntry {
   reps: number
   weight: number
+  note?: string
 }
 
 export interface LogEntry {
@@ -9,6 +10,8 @@ export interface LogEntry {
   /** ISO datetime string */
   date: string
   sets: SetEntry[]
+  /** Vrije titel voor de hele training, bijv. "Push", "Upper", "Legs + Side delts" */
+  workoutName?: string
   note?: string
   /** De originele ingesproken/getypte tekst, voor controle achteraf */
   rawInput?: string
@@ -90,6 +93,17 @@ export function updateLog(id: string, updates: Partial<Omit<LogEntry, 'id'>>) {
 
 export function clearAllLogs() {
   writeRaw([])
+}
+
+/** Recent gebruikte workout-namen, meest recent eerst, voor suggesties bij het loggen. */
+export function getRecentWorkoutNames(limit = 15): string[] {
+  const seen = new Set<string>()
+  for (const log of getLogs()) {
+    const name = log.workoutName?.trim()
+    if (name) seen.add(name)
+    if (seen.size >= limit) break
+  }
+  return [...seen]
 }
 
 export function exportLogsJson(): string {

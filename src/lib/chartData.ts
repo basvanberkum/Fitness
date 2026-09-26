@@ -1,7 +1,6 @@
-import { EXERCISES, type ExerciseCategory } from '../data/exercises'
+import type { ExerciseCategory } from '../data/exercises'
+import { getAllExercises } from './exerciseCatalog'
 import type { LogEntry } from './storage'
-
-const exerciseCategoryById = new Map<string, ExerciseCategory>(EXERCISES.map((e) => [e.id, e.category]))
 
 export type Granularity = 'day' | 'week' | 'month'
 
@@ -22,13 +21,13 @@ function startOfIsoWeek(date: Date): Date {
   return d
 }
 
-function bucketKeyFor(date: Date, granularity: Granularity): string {
+export function bucketKeyFor(date: Date, granularity: Granularity): string {
   if (granularity === 'day') return date.toISOString().slice(0, 10)
   if (granularity === 'week') return startOfIsoWeek(date).toISOString().slice(0, 10)
   return date.toISOString().slice(0, 7)
 }
 
-function labelFor(date: Date, granularity: Granularity): string {
+export function labelFor(date: Date, granularity: Granularity): string {
   if (granularity === 'day') return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
   if (granularity === 'week') return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
   return date.toLocaleDateString('nl-NL', { month: 'short', year: '2-digit' })
@@ -48,6 +47,7 @@ export function buildCategoryVolumeSeries(
   granularity: Granularity,
   now: Date = new Date(),
 ): CategoryVolumePoint[] {
+  const exerciseCategoryById = new Map<string, ExerciseCategory>(getAllExercises().map((e) => [e.id, e.category]))
   const startDate = new Date(now)
   startDate.setDate(startDate.getDate() - rangeDays + 1)
   startDate.setHours(0, 0, 0, 0)

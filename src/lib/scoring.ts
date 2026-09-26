@@ -1,4 +1,5 @@
-import { EXERCISES, MUSCLE_LABELS, type Exercise, type MuscleGroup } from '../data/exercises'
+import { MUSCLE_LABELS, type Exercise, type MuscleGroup } from '../data/exercises'
+import { getAllExercises } from './exerciseCatalog'
 import type { LogEntry } from './storage'
 
 export type MuscleStatus = 'low' | 'good' | 'high'
@@ -42,8 +43,6 @@ export interface MuscleScore {
   last30dStatus: MuscleStatus
 }
 
-const exerciseById = new Map<string, Exercise>(EXERCISES.map((e) => [e.id, e]))
-
 function withinDays(dateIso: string, days: number, now: Date): boolean {
   const date = new Date(dateIso)
   const diffMs = now.getTime() - date.getTime()
@@ -51,7 +50,12 @@ function withinDays(dateIso: string, days: number, now: Date): boolean {
 }
 
 /** Gewogen setcount per spiergroep voor logs binnen de laatste `days` dagen. */
-function weightedSetsByMuscle(logs: LogEntry[], days: number, now: Date): Record<MuscleGroup, number> {
+function weightedSetsByMuscle(
+  logs: LogEntry[],
+  days: number,
+  now: Date,
+  exerciseById: Map<string, Exercise>,
+): Record<MuscleGroup, number> {
   const totals = Object.fromEntries(
     (Object.keys(WEEKLY_SET_TARGETS) as MuscleGroup[]).map((m) => [m, 0]),
   ) as Record<MuscleGroup, number>
@@ -80,8 +84,9 @@ function scoreFor(sets: number, target: MuscleTarget): { score: number; status: 
 }
 
 export function computeMuscleScores(logs: LogEntry[], now: Date = new Date()): MuscleScore[] {
-  const weekly = weightedSetsByMuscle(logs, 7, now)
-  const last30d = weightedSetsByMuscle(logs, 30, now)
+  const exerciseById = new Map<string, Exercise>(getAllExercises().map((e) => [e.id, e]))
+  const weekly = weightedSetsByMuscle(logs, 7, now, exerciseById)
+  const last30d = weightedSetsByMuscle(logs, 30, now, exerciseById)
 
   return (Object.keys(WEEKLY_SET_TARGETS) as MuscleGroup[]).map((muscle) => {
     const target = WEEKLY_SET_TARGETS[muscle]
@@ -142,8 +147,10 @@ export function generateTips(logs: LogEntry[], now: Date = new Date(), maxTips =
     .sort((a, b) => a.weeklyScore - b.weeklyScore)
     .slice(0, maxTips)
 
+  const allExercises = getAllExercises()
+
   return lowMuscles.map((score) => {
-    const candidates = EXERCISES.filter((e) => (e.muscles[score.muscle] ?? 0) >= 0.8)
+    const candidates = allExercises.filter((e) => (e.muscles[score.muscle] ?? 0) >= 0.8)
 
     const ranked = candidates
       .map((exercise) => ({

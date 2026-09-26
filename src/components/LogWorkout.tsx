@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CATEGORY_LABELS, EXERCISES, type ExerciseCategory, findExerciseById } from '../data/exercises'
-import { addLog, deleteLog, type LogEntry } from '../lib/storage'
+import { CATEGORY_LABELS, type ExerciseCategory } from '../data/exercises'
+import { findExercise } from '../lib/exerciseCatalog'
+import { addLog, deleteLog, getRecentWorkoutNames, type LogEntry, type SetEntry } from '../lib/storage'
+import { useAllExercises } from '../lib/useAllExercises'
 import {
   isSpeechRecognitionSupported,
   parseWorkoutText,
@@ -19,35 +21,40 @@ function formatDateTime(iso: string): string {
   })
 }
 
+function emptySetRow(reps = 10, weight = 20): SetEntry {
+  return { reps, weight }
+}
+
 export function LogWorkout({ logs }: { logs: LogEntry[] }) {
+  const allExercises = useAllExercises()
   const [transcript, setTranscript] = useState('')
   const [isListening, setIsListening] = useState(false)
   const [voiceError, setVoiceError] = useState<string | null>(null)
   const [source, setSource] = useState<'voice' | 'manual'>('manual')
 
-  const [exerciseId, setExerciseId] = useState(EXERCISES[0].id)
-  const [sets, setSets] = useState(3)
-  const [reps, setReps] = useState(10)
-  const [weight, setWeight] = useState(20)
+  const [exerciseId, setExerciseId] = useState(allExercises[0]?.id ?? '')
+  const [setRows, setSetRows] = useState<SetEntry[]>([emptySetRow()])
   const [bodyweight, setBodyweight] = useState(false)
-  const [note, setNote] = useState('')
+  const [workoutName, setWorkoutName] = useState('')
 
-  const handleRef = useRef<VoiceListenHandle | null>(null);
+  const handleRef = useRef<VoiceListenHandle | null>(null)
   const speechSupported = useMemo(() => isSpeechRecognitionSupported(), [])
+  // Leest bewust opnieuw uit storage zodra `logs` verandert, zodat net gebruikte
+  // workout-namen meteen als suggestie verschijnen.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const recentWorkoutNames = useMemo(() => getRecentWorkoutNames(), [logs])
 
   useEffect(() => () => handleRef.current?.stop(), [])
 
   function applyParsedText(text: string) {
     const parsed = parseWorkoutText(text)
     if (parsed.exercise) setExerciseId(parsed.exercise.id)
-    if (parsed.sets !== null) setSets(parsed.sets)
-    if (parsed.reps !== null) setReps(parsed.reps)
-    if (parsed.bodyweight) {
-      setBodyweight(true)
-    } else if (parsed.weight !== null) {
-      setBodyweight(false)
-      setWeight(parsed.weight)
-    }
+    const count = parsed.sets ?? setRows.length
+    const reps = parsed.reps ?? setRows[0]?.reps ?? 10
+    const isBodyweight = parsed.bodyweight
+    const weight = isBodyweight ? 0 : (parsed.weight ?? setRows[0]?.weight ?? 20)
+    setBodyweight(isBodyweight)
+    setSetRows(Array.from({ length: Math.max(1, count) }, () => emptySetRow(reps, weight)))
   }
 
   function toggleListening() {
@@ -72,22 +79,37 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
     })
   }
 
+  function updateSetRow(index: number, updates: Partial<SetEntry>) {
+    setSetRows((rows) => rows.map((r, i) => (i === index ? { ...r, ...updates } : r)))
+  }
+
+  function addSetRow() {
+    setSetRows((rows) => {
+      const last = rows[rows.length - 1]
+      return [...rows, last ? { ...last, note: undefined } : emptySetRow()]
+    })
+  }
+
+  function removeSetRow(index: number) {
+    setSetRows((rows) => (rows.length <= 1 ? rows : rows.filter((_, i) => i !== index)))
+  }
+
   function handleSave() {
-    const setCount = Math.max(1, sets)
     const entry: Omit<LogEntry, 'id'> = {
       exerciseId,
       date: new Date().toISOString(),
-      sets: Array.from({ length: setCount }, () => ({
-        reps: Math.max(0, reps),
-        weight: bodyweight ? 0 : Math.max(0, weight),
+      sets: setRows.map((r) => ({
+        reps: Math.max(0, r.reps),
+        weight: bodyweight ? 0 : Math.max(0, r.weight),
+        note: r.note?.trim() || undefined,
       })),
-      note: note.trim() || undefined,
+      workoutName: workoutName.trim() || undefined,
       rawInput: transcript.trim() || undefined,
       source,
     }
     addLog(entry)
     setTranscript('')
-    setNote('')
+    setSetRows([emptySetRow()])
     setSource('manual')
   }
 
@@ -156,6 +178,24 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
         </h2>
 
         <label className="mt-3 block text-sm" style={{ color: 'var(--text-secondary)' }}>
+          Workout naam (optioneel)
+          <input
+            type="text"
+            list="workout-name-suggestions"
+            value={workoutName}
+            onChange={(e) => setWorkoutName(e.target.value)}
+            placeholder="Bijv. Push, Upper, Benen"
+            className="mt-1 w-full rounded-lg px-3 py-2 text-sm"
+            style={{ background: 'var(--surface-page)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+          />
+          <datalist id="workout-name-suggestions">
+            {recentWorkoutNames.map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
+        </label>
+
+        <label className="mt-3 block text-sm" style={{ color: 'var(--text-secondary)' }}>
           Oefening
           <select
             value={exerciseId}
@@ -165,7 +205,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
           >
             {CATEGORIES.map((cat) => (
               <optgroup key={cat} label={CATEGORY_LABELS[cat]}>
-                {EXERCISES.filter((e) => e.category === cat).map((e) => (
+                {allExercises.filter((e) => e.category === cat).map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.name}
                   </option>
@@ -175,59 +215,73 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
           </select>
         </label>
 
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <label className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Sets
-            <input
-              type="number"
-              min={1}
-              value={sets}
-              onChange={(e) => setSets(Number(e.target.value))}
-              className="mt-1 w-full rounded-lg px-2 py-2 text-sm"
-              style={{ background: 'var(--surface-page)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-            />
-          </label>
-          <label className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Reps
-            <input
-              type="number"
-              min={0}
-              value={reps}
-              onChange={(e) => setReps(Number(e.target.value))}
-              className="mt-1 w-full rounded-lg px-2 py-2 text-sm"
-              style={{ background: 'var(--surface-page)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-            />
-          </label>
-          <label className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Kg
-            <input
-              type="number"
-              min={0}
-              step={0.5}
-              value={weight}
-              disabled={bodyweight}
-              onChange={(e) => setWeight(Number(e.target.value))}
-              className="mt-1 w-full rounded-lg px-2 py-2 text-sm disabled:opacity-40"
-              style={{ background: 'var(--surface-page)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-            />
-          </label>
-        </div>
-
         <label className="mt-3 flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
           <input type="checkbox" checked={bodyweight} onChange={(e) => setBodyweight(e.target.checked)} />
           Eigen lichaamsgewicht
         </label>
 
-        <label className="mt-3 block text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Notitie (optioneel)
-          <input
-            type="text"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            className="mt-1 w-full rounded-lg px-3 py-2 text-sm"
-            style={{ background: 'var(--surface-page)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-          />
-        </label>
+        <div className="mt-3 flex flex-col gap-2">
+          {setRows.map((row, i) => (
+            <div key={i} className="rounded-lg p-2" style={{ background: 'var(--surface-page)', border: '1px solid var(--border)' }}>
+              <div className="flex items-end gap-2">
+                <span className="w-5 shrink-0 pb-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  {i + 1}
+                </span>
+                <label className="flex-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  Reps
+                  <input
+                    type="number"
+                    min={0}
+                    value={row.reps}
+                    onChange={(e) => updateSetRow(i, { reps: Number(e.target.value) })}
+                    className="mt-1 w-full rounded-lg px-2 py-1.5 text-sm"
+                    style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                  />
+                </label>
+                <label className="flex-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  Kg
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    value={row.weight}
+                    disabled={bodyweight}
+                    onChange={(e) => updateSetRow(i, { weight: Number(e.target.value) })}
+                    className="mt-1 w-full rounded-lg px-2 py-1.5 text-sm disabled:opacity-40"
+                    style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => removeSetRow(i)}
+                  disabled={setRows.length <= 1}
+                  className="shrink-0 rounded-lg px-2 py-1.5 text-xs disabled:opacity-30"
+                  style={{ color: 'var(--status-critical)', border: '1px solid var(--border)' }}
+                  aria-label="Set verwijderen"
+                >
+                  ✕
+                </button>
+              </div>
+              <input
+                type="text"
+                value={row.note ?? ''}
+                onChange={(e) => updateSetRow(i, { note: e.target.value })}
+                placeholder="Notitie bij deze set (optioneel)"
+                className="mt-2 w-full rounded-lg px-2 py-1.5 text-xs"
+                style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+              />
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={addSetRow}
+          className="mt-2 w-full rounded-lg py-2 text-xs font-medium"
+          style={{ color: 'var(--series-push)', border: '1px dashed var(--border)' }}
+        >
+          + Set toevoegen
+        </button>
 
         <button
           type="button"
@@ -250,7 +304,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
         )}
         <div className="flex flex-col gap-2">
           {recentLogs.map((log) => {
-            const exercise = findExerciseById(log.exerciseId)
+            const exercise = findExercise(log.exerciseId)
             return (
               <div
                 key={log.id}
@@ -260,6 +314,11 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
                 <div>
                   <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                     {exercise?.name ?? log.exerciseId}
+                    {log.workoutName && (
+                      <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
+                        · {log.workoutName}
+                      </span>
+                    )}
                   </p>
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                     {formatDateTime(log.date)} · {log.sets.length} sets × {log.sets[0]?.reps ?? 0} reps

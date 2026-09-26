@@ -9,7 +9,7 @@ export interface ImportDraftGroup {
   rawExerciseName: string
   date: Date
   sets: SetEntry[]
-  notes: string[]
+  workoutName?: string
 }
 
 export interface ImportParseResult {
@@ -84,6 +84,7 @@ export function buildImportDraft(csv: ParsedCsv, mapping: ColumnMapping): Import
   const repsIdx = idx('reps')
   const setsCountIdx = idx('setsCount')
   const notesIdx = idx('notes')
+  const workoutNameIdx = idx('workoutName')
 
   const groups = new Map<string, ImportDraftGroup>()
   const exerciseNames = new Set<string>()
@@ -107,24 +108,23 @@ export function buildImportDraft(csv: ParsedCsv, mapping: ColumnMapping): Import
     const rawReps = repsIdx >= 0 ? parseFloat((row[repsIdx] ?? '0').replace(',', '.')) : 0
     const reps = Number.isFinite(rawReps) ? Math.round(rawReps) : 0
     const setsCount = setsCountIdx >= 0 ? Math.max(1, Math.round(Number(row[setsCountIdx]) || 1)) : 1
-    const note = notesIdx >= 0 ? row[notesIdx]?.trim() : ''
+    const note = notesIdx >= 0 ? row[notesIdx]?.trim() || undefined : undefined
+    const workoutName = workoutNameIdx >= 0 ? row[workoutNameIdx]?.trim() || undefined : undefined
 
     const key = `${rawExercise}|${date.toISOString().slice(0, 10)}`
     let group = groups.get(key)
     if (!group) {
-      group = { key, rawExerciseName: rawExercise, date, sets: [], notes: [] }
+      group = { key, rawExerciseName: rawExercise, date, sets: [], workoutName }
       groups.set(key, group)
     }
 
     if (setsCountIdx >= 0 && weightIdx >= 0) {
-      // "aggregated" formaat: deze rij vertegenwoordigt meteen N sets met dezelfde reps/gewicht
-      for (let i = 0; i < setsCount; i++) group.sets.push({ reps, weight })
+      // "aggregated" formaat: deze rij vertegenwoordigt meteen N sets met dezelfde reps/gewicht/notitie
+      for (let i = 0; i < setsCount; i++) group.sets.push({ reps, weight, note })
     } else {
-      // "per-set" formaat: elke rij is één set
-      group.sets.push({ reps, weight })
+      // "per-set" formaat: elke rij is één set, met haar eigen notitie
+      group.sets.push({ reps, weight, note })
     }
-
-    if (note) group.notes.push(note)
   }
 
   return {
@@ -147,7 +147,7 @@ export function draftGroupsToLogEntries(
       exerciseId,
       date: group.date.toISOString(),
       sets: group.sets,
-      note: group.notes[0] || undefined,
+      workoutName: group.workoutName,
       source: 'import',
     })
   }

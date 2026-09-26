@@ -1,7 +1,8 @@
-import { EXERCISES, type Exercise } from '../data/exercises'
+import type { Exercise } from '../data/exercises'
 import { normalizeDutchText } from './dutchNumbers'
+import { getAllExercises } from './exerciseCatalog'
 
-export type ImportField = 'date' | 'exercise' | 'weight' | 'weightUnit' | 'reps' | 'setsCount' | 'notes'
+export type ImportField = 'date' | 'exercise' | 'weight' | 'weightUnit' | 'reps' | 'setsCount' | 'notes' | 'workoutName'
 
 export const IMPORT_FIELD_LABELS: Record<ImportField, string> = {
   date: 'Datum',
@@ -11,6 +12,7 @@ export const IMPORT_FIELD_LABELS: Record<ImportField, string> = {
   reps: 'Herhalingen (reps)',
   setsCount: 'Aantal sets',
   notes: 'Notitie',
+  workoutName: 'Workout naam',
 }
 
 const FIELD_KEYWORDS: Record<ImportField, string[]> = {
@@ -21,6 +23,7 @@ const FIELD_KEYWORDS: Record<ImportField, string[]> = {
   reps: ['reps', 'repetitions', 'herhalingen', 'rep count', 'herh'],
   setsCount: ['sets', 'set count', 'number of sets', 'aantal sets', 'setjes'],
   notes: ['notes', 'notitie', 'notities', 'opmerking', 'comment', 'workout notes'],
+  workoutName: ['workout name', 'workout naam', 'session name', 'routine', 'naam'],
 }
 
 // Kolommen die duiden op "één rij per set" i.p.v. "één rij per oefening" (zoals bij de Strong-app export).
@@ -80,7 +83,9 @@ export function matchExerciseByFreeText(rawName: string): Exercise | null {
   const normalizedInput = normalizeDutchText(rawName)
   if (!normalizedInput) return null
 
-  for (const exercise of EXERCISES) {
+  const allExercises = getAllExercises()
+
+  for (const exercise of allExercises) {
     const candidates = [exercise.name, ...exercise.aliases].map(normalizeDutchText)
     if (candidates.includes(normalizedInput)) return exercise
   }
@@ -97,7 +102,7 @@ export function matchExerciseByFreeText(rawName: string): Exercise | null {
   const inputHasMultipleWords = normalizedInput.includes(' ')
 
   let bestSubstring: { exercise: Exercise; length: number } | null = null
-  for (const exercise of EXERCISES) {
+  for (const exercise of allExercises) {
     const candidates = [exercise.name, ...exercise.aliases].map(normalizeDutchText)
     for (const c of candidates) {
       if (c.length <= 2) continue
@@ -114,7 +119,7 @@ export function matchExerciseByFreeText(rawName: string): Exercise | null {
 
   // laatste redmiddel: kleine tikfouten tolereren op de dichtstbijzijnde alias
   let best: { exercise: Exercise; distance: number } | null = null
-  for (const exercise of EXERCISES) {
+  for (const exercise of allExercises) {
     for (const alias of [exercise.name, ...exercise.aliases]) {
       const normalizedAlias = normalizeDutchText(alias)
       const distance = levenshtein(normalizedInput, normalizedAlias)

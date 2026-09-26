@@ -1,5 +1,6 @@
-import { EXERCISES, type Exercise } from '../data/exercises'
+import type { Exercise } from '../data/exercises'
 import { convertDutchNumberWordsToDigits, normalizeDutchText } from './dutchNumbers'
+import { getAllExercises } from './exerciseCatalog'
 
 export interface ParsedWorkout {
   exercise: Exercise | null
@@ -13,7 +14,7 @@ export interface ParsedWorkout {
 
 function matchExercise(normalizedText: string): Exercise | null {
   let best: { exercise: Exercise; aliasLength: number } | null = null
-  for (const exercise of EXERCISES) {
+  for (const exercise of getAllExercises()) {
     for (const alias of exercise.aliases) {
       const normalizedAlias = normalizeDutchText(alias)
       if (normalizedAlias.length === 0) continue
