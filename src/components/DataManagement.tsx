@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { clearAllLogs, exportLogsJson } from '../lib/storage'
+import { bulkAddLogs, clearAllLogs, exportLogsJson, type LogEntry } from '../lib/storage'
 import { ImportCsv } from './ImportCsv'
 
 function downloadFile(content: string, filename: string, type: string) {
@@ -14,9 +14,29 @@ function downloadFile(content: string, filename: string, type: string) {
 
 export function DataManagement() {
   const [confirmingClear, setConfirmingClear] = useState(false)
+  const [jsonImportResult, setJsonImportResult] = useState<{ added: number; skippedDuplicates: number } | null>(null)
+  const [jsonImportError, setJsonImportError] = useState<string | null>(null)
 
   function handleExport() {
     downloadFile(exportLogsJson(), `fitness-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
+  }
+
+  async function handleJsonImport(file: File) {
+    setJsonImportError(null)
+    setJsonImportResult(null)
+    try {
+      const text = await file.text()
+      const parsed = JSON.parse(text)
+      if (!Array.isArray(parsed)) throw new Error('not an array')
+      const entries: Omit<LogEntry, 'id'>[] = parsed.map((entry: LogEntry) => {
+        const { id: _id, ...rest } = entry
+        return rest
+      })
+      const result = bulkAddLogs(entries)
+      setJsonImportResult(result)
+    } catch {
+      setJsonImportError('Kon dit bestand niet importeren. Is het een geldige JSON back-up van deze app?')
+    }
   }
 
   function handleClear() {
@@ -47,6 +67,32 @@ export function DataManagement() {
         >
           Exporteer als JSON
         </button>
+
+        <p className="mt-4 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          Of laad een eerder gemaakte JSON back-up in (bijv. van een andere browser). Nieuwe trainingen worden
+          toegevoegd aan wat je al hebt; exacte duplicaten worden overgeslagen.
+        </p>
+        <input
+          type="file"
+          accept=".json,application/json"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) void handleJsonImport(file)
+          }}
+          className="mt-2 text-sm"
+          style={{ color: 'var(--text-primary)' }}
+        />
+        {jsonImportError && (
+          <p className="mt-2 text-xs" style={{ color: 'var(--status-critical)' }}>
+            {jsonImportError}
+          </p>
+        )}
+        {jsonImportResult && (
+          <p className="mt-2 text-xs" style={{ color: 'var(--status-good)' }}>
+            {jsonImportResult.added} trainingen geïmporteerd
+            {jsonImportResult.skippedDuplicates > 0 && <> ({jsonImportResult.skippedDuplicates} duplicaten overgeslagen)</>}.
+          </p>
+        )}
       </section>
 
       <section

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -13,7 +13,7 @@ import {
   YAxis,
 } from 'recharts'
 import { CATEGORY_LABELS, EXERCISES, findExerciseById } from '../data/exercises'
-import { buildDailyCategoryVolume } from '../lib/chartData'
+import { buildCategoryVolumeSeries, daysSinceEarliestLog, granularityForRangeDays } from '../lib/chartData'
 import { getChartPalette, statusColorFromPalette } from '../lib/chartColors'
 import { computeMuscleScores } from '../lib/scoring'
 import { useDarkMode } from '../lib/useDarkMode'
@@ -24,48 +24,90 @@ function withinDays(dateIso: string, days: number, now: Date): boolean {
   return diff >= 0 && diff <= days * 24 * 60 * 60 * 1000
 }
 
+type RangeKey = '7d' | '30d' | '90d' | 'all'
+
+const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
+  { key: '7d', label: '7D' },
+  { key: '30d', label: '30D' },
+  { key: '90d', label: '90D' },
+  { key: 'all', label: 'Alles' },
+]
+
 export function Stats({ logs }: { logs: LogEntry[] }) {
   const isDark = useDarkMode()
   const palette = useMemo(() => getChartPalette(isDark), [isDark])
   const now = useMemo(() => new Date(), [])
+  const [range, setRange] = useState<RangeKey>('30d')
 
-  const dailyData = useMemo(() => buildDailyCategoryVolume(logs, 30, now), [logs, now])
+  const rangeDays = useMemo(() => {
+    if (range === '7d') return 7
+    if (range === '30d') return 30
+    if (range === '90d') return 90
+    return daysSinceEarliestLog(logs, now)
+  }, [range, logs, now])
+
+  const granularity = useMemo(() => granularityForRangeDays(rangeDays), [rangeDays])
+  const volumeData = useMemo(
+    () => buildCategoryVolumeSeries(logs, rangeDays, granularity, now),
+    [logs, rangeDays, granularity, now],
+  )
   const scores = useMemo(() => computeMuscleScores(logs, now), [logs, now])
 
   const topExercises = useMemo(() => {
     const counts = new Map<string, number>()
     for (const log of logs) {
-      if (!withinDays(log.date, 30, now)) continue
+      if (!withinDays(log.date, rangeDays, now)) continue
       counts.set(log.exerciseId, (counts.get(log.exerciseId) ?? 0) + log.sets.length)
     }
     return [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([exerciseId, sets]) => ({ exercise: findExerciseById(exerciseId), sets }))
-  }, [logs, now])
+  }, [logs, rangeDays, now])
 
   const tickStyle = { fill: palette.textMuted, fontSize: 11 }
+  // Toon ongeveer 6 labels op de x-as, ongeacht hoeveel datapunten er zijn.
+  const xAxisInterval = Math.max(0, Math.ceil(volumeData.length / 6) - 1)
 
   return (
     <div className="flex flex-col gap-6 px-4 py-5">
+      <div className="flex gap-2">
+        {RANGE_OPTIONS.map((opt) => (
+          <button
+            key={opt.key}
+            type="button"
+            onClick={() => setRange(opt.key)}
+            className="flex-1 rounded-full py-1.5 text-xs font-medium"
+            style={{
+              background: range === opt.key ? 'var(--series-push)' : 'var(--surface-1)',
+              color: range === opt.key ? '#fff' : 'var(--text-secondary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
       <section
         className="rounded-2xl p-4"
         style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
       >
         <h2 className="mb-1 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Volume per categorie (30 dagen)
+          Volume per categorie
         </h2>
         <p className="mb-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-          Aantal sets per dag, per type oefening
+          Aantal sets per {granularity === 'day' ? 'dag' : granularity === 'week' ? 'week' : 'maand'}, per type
+          oefening
         </p>
         <div className="h-64 w-full" data-testid="category-line-chart">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={dailyData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+            <LineChart data={volumeData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
               <CartesianGrid stroke={palette.gridline} strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="dateLabel"
                 tick={tickStyle}
-                interval={4}
+                interval={xAxisInterval}
                 axisLine={{ stroke: palette.baseline }}
                 tickLine={false}
               />
@@ -141,7 +183,7 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
         style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
       >
         <h2 className="mb-2 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Meest gedane oefeningen (30 dagen)
+          Meest gedane oefeningen ({RANGE_OPTIONS.find((o) => o.key === range)?.label.toLowerCase()})
         </h2>
         {topExercises.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>

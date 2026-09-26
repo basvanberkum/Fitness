@@ -15,6 +15,12 @@ export function Dashboard({ logs }: { logs: LogEntry[] }) {
     [scores],
   )
 
+  const daysSinceLastLog = useMemo(() => {
+    if (logs.length === 0) return null
+    const mostRecent = logs.reduce((max, l) => Math.max(max, new Date(l.date).getTime()), 0)
+    return Math.floor((now.getTime() - mostRecent) / (24 * 60 * 60 * 1000))
+  }, [logs, now])
+
   return (
     <div className="flex flex-col gap-6 px-4 py-5">
       <section
@@ -32,6 +38,13 @@ export function Dashboard({ logs }: { logs: LogEntry[] }) {
           (bijstelbaar startpunt, geen medisch advies)
         </p>
       </section>
+
+      {daysSinceLastLog !== null && daysSinceLastLog > 7 && (
+        <p className="text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+          Je laatste gelogde training was {daysSinceLastLog} dagen geleden. De score hierboven gaat over recente
+          training — bekijk "Statistieken" (met "Alles") voor je volledige geschiedenis.
+        </p>
+      )}
 
       {tips.length > 0 && (
         <section>

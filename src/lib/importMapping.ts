@@ -14,13 +14,13 @@ export const IMPORT_FIELD_LABELS: Record<ImportField, string> = {
 }
 
 const FIELD_KEYWORDS: Record<ImportField, string[]> = {
-  date: ['date', 'datum', 'workout date', 'start time', 'timestamp'],
+  date: ['date', 'datum', 'workout date', 'start time', 'start training', 'starttijd', 'timestamp', 'start'],
   exercise: ['exercise name', 'exercise', 'oefening', 'oefeningnaam'],
   weight: ['weight', 'gewicht', 'load', 'kg'],
   weightUnit: ['weight unit', 'unit', 'eenheid'],
-  reps: ['reps', 'repetitions', 'herhalingen', 'rep count'],
+  reps: ['reps', 'repetitions', 'herhalingen', 'rep count', 'herh'],
   setsCount: ['sets', 'set count', 'number of sets', 'aantal sets', 'setjes'],
-  notes: ['notes', 'notitie', 'opmerking', 'comment', 'workout notes'],
+  notes: ['notes', 'notitie', 'notities', 'opmerking', 'comment', 'workout notes'],
 }
 
 // Kolommen die duiden op "één rij per set" i.p.v. "één rij per oefening" (zoals bij de Strong-app export).
@@ -85,12 +85,32 @@ export function matchExerciseByFreeText(rawName: string): Exercise | null {
     if (candidates.includes(normalizedInput)) return exercise
   }
 
+  // Substring-match: neem over ALLE oefeningen de LANGSTE (dus meest specifieke) match,
+  // in plaats van de eerste de beste. Anders kan bijv. "Shoulder Dumbbell Press" per
+  // ongeluk matchen op de kortere alias "dumbbell press" van Dumbbell Bankdrukken,
+  // terwijl er een specifiekere (langere) alias "shoulder dumbbell press" bestaat.
+  // Een kandidaat die simpelweg de HELE input bevat (bijv. alias "crab walking" bevat
+  // het te generieke, losstaande woord "walking") mag alleen meetellen als de input zelf
+  // uit meerdere woorden bestaat. Anders zou een kort, generiek los woord (zoals een
+  // cardio-activiteit die niet in onze bibliotheek zit) ten onrechte matchen op een
+  // toevallig langere, specifieke oefeningnaam die dat woord ergens bevat.
+  const inputHasMultipleWords = normalizedInput.includes(' ')
+
+  let bestSubstring: { exercise: Exercise; length: number } | null = null
   for (const exercise of EXERCISES) {
     const candidates = [exercise.name, ...exercise.aliases].map(normalizeDutchText)
-    if (candidates.some((c) => c.length > 2 && (normalizedInput.includes(c) || c.includes(normalizedInput)))) {
-      return exercise
+    for (const c of candidates) {
+      if (c.length <= 2) continue
+      const inputContainsCandidate = normalizedInput.includes(c)
+      const candidateContainsInput = inputHasMultipleWords && c.includes(normalizedInput)
+      if (inputContainsCandidate || candidateContainsInput) {
+        if (!bestSubstring || c.length > bestSubstring.length) {
+          bestSubstring = { exercise, length: c.length }
+        }
+      }
     }
   }
+  if (bestSubstring) return bestSubstring.exercise
 
   // laatste redmiddel: kleine tikfouten tolereren op de dichtstbijzijnde alias
   let best: { exercise: Exercise; distance: number } | null = null
