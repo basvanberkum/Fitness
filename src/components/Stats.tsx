@@ -4,9 +4,8 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   Legend,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -16,10 +15,11 @@ import { CATEGORY_LABELS } from '../data/exercises'
 import { buildCategoryVolumeSeries, daysSinceEarliestLog, granularityForRangeDays } from '../lib/chartData'
 import { getChartPalette, statusColorFromPalette } from '../lib/chartColors'
 import { findExercise } from '../lib/exerciseCatalog'
-import { computeMuscleScores } from '../lib/scoring'
+import { computeMuscleWeeklyAverage } from '../lib/scoring'
 import { useAllExercises } from '../lib/useAllExercises'
 import { useDarkMode } from '../lib/useDarkMode'
 import type { LogEntry } from '../lib/storage'
+import { TargetSettings } from './TargetSettings'
 
 function withinDays(dateIso: string, days: number, now: Date): boolean {
   const diff = now.getTime() - new Date(dateIso).getTime()
@@ -49,12 +49,18 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
     return daysSinceEarliestLog(logs, now)
   }, [range, logs, now])
 
+  const rangeLabel = RANGE_OPTIONS.find((o) => o.key === range)?.label.toLowerCase()
+
   const granularity = useMemo(() => granularityForRangeDays(rangeDays), [rangeDays])
   const volumeData = useMemo(
     () => buildCategoryVolumeSeries(logs, rangeDays, granularity, now),
     [logs, rangeDays, granularity, now],
   )
-  const scores = useMemo(() => computeMuscleScores(logs, now), [logs, now])
+
+  const muscleAverages = useMemo(() => {
+    const data = computeMuscleWeeklyAverage(logs, rangeDays, now)
+    return [...data].sort((a, b) => a.score - b.score)
+  }, [logs, rangeDays, now])
 
   const topExercises = useMemo(() => {
     const counts = new Map<string, number>()
@@ -103,9 +109,9 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
           Aantal sets per {granularity === 'day' ? 'dag' : granularity === 'week' ? 'week' : 'maand'}, per type
           oefening
         </p>
-        <div className="h-64 w-full" data-testid="category-line-chart">
+        <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={volumeData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+            <BarChart data={volumeData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
               <CartesianGrid stroke={palette.gridline} strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="dateLabel"
@@ -129,53 +135,10 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
                 height={28}
                 formatter={(value) => <span style={{ color: palette.textSecondary, fontSize: 12 }}>{value}</span>}
               />
-              <Line type="monotone" dataKey="push" name={CATEGORY_LABELS.push} stroke={palette.seriesPush} strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="pull" name={CATEGORY_LABELS.pull} stroke={palette.seriesPull} strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="legs" name={CATEGORY_LABELS.legs} stroke={palette.seriesLegs} strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="core" name={CATEGORY_LABELS.core} stroke={palette.seriesCore} strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
-
-      <section
-        className="rounded-2xl p-4"
-        style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
-      >
-        <h2 className="mb-1 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Sets per spiergroep (deze week)
-        </h2>
-        <div className="mb-2 flex flex-wrap gap-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
-          <span className="flex items-center gap-1">
-            <span className="inline-block h-2 w-2 rounded-full" style={{ background: palette.statusCritical }} />
-            Te weinig
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block h-2 w-2 rounded-full" style={{ background: palette.statusGood }} />
-            Goed
-          </span>
-        </div>
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={scores} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-              <CartesianGrid stroke={palette.gridline} strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="label" tick={{ ...tickStyle, fontSize: 10 }} axisLine={{ stroke: palette.baseline }} tickLine={false} />
-              <YAxis tick={tickStyle} allowDecimals={false} axisLine={false} tickLine={false} width={28} />
-              <Tooltip
-                contentStyle={{
-                  background: palette.surface1,
-                  border: `1px solid ${palette.gridline}`,
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-                labelStyle={{ color: palette.textSecondary }}
-                formatter={(value) => [`${value} sets`, 'Deze week']}
-              />
-              <Bar dataKey="weeklySets" radius={[4, 4, 0, 0]}>
-                {scores.map((s) => (
-                  <Cell key={s.muscle} fill={statusColorFromPalette(palette, s.weeklyScore)} />
-                ))}
-              </Bar>
+              <Bar dataKey="push" name={CATEGORY_LABELS.push} stackId="volume" fill={palette.seriesPush} />
+              <Bar dataKey="pull" name={CATEGORY_LABELS.pull} stackId="volume" fill={palette.seriesPull} />
+              <Bar dataKey="legs" name={CATEGORY_LABELS.legs} stackId="volume" fill={palette.seriesLegs} />
+              <Bar dataKey="core" name={CATEGORY_LABELS.core} stackId="volume" fill={palette.seriesCore} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -185,8 +148,80 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
         className="rounded-2xl p-4"
         style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
       >
+        <h2 className="mb-1 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Gemiddeld sets/week per spiergroep
+        </h2>
+        <p className="mb-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          Gemiddelde over de laatste {rangeLabel} · getal achter de balk = gemiddelde / jouw doel per week
+        </p>
+        <div className="mb-2 flex flex-wrap gap-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: palette.statusCritical }} />
+            Te weinig
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: palette.statusGood }} />
+            Goed
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: palette.statusSerious }} />
+            Boven doel
+          </span>
+        </div>
+        <div style={{ height: 360 }} className="w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={muscleAverages}
+              layout="vertical"
+              margin={{ top: 4, right: 48, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid stroke={palette.gridline} strokeDasharray="3 3" horizontal={false} />
+              <XAxis type="number" tick={tickStyle} allowDecimals={false} axisLine={false} tickLine={false} />
+              <YAxis
+                type="category"
+                dataKey="label"
+                tick={{ ...tickStyle, fontSize: 11 }}
+                axisLine={{ stroke: palette.baseline }}
+                tickLine={false}
+                width={82}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: palette.surface1,
+                  border: `1px solid ${palette.gridline}`,
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+                labelStyle={{ color: palette.textSecondary }}
+                formatter={(value, _name, item) => [
+                  `${value} / week (doel ${item.payload.target.min}-${item.payload.target.max})`,
+                  'Gemiddeld',
+                ]}
+              />
+              <Bar dataKey="averagePerWeek" radius={[0, 4, 4, 0]}>
+                {muscleAverages.map((m) => (
+                  <Cell key={m.muscle} fill={statusColorFromPalette(palette, m.score)} />
+                ))}
+                <LabelList
+                  dataKey="averagePerWeek"
+                  position="right"
+                  style={{ fill: palette.textSecondary, fontSize: 11 }}
+                  formatter={(value: string | number | boolean | null | undefined) => `${value ?? ''}`}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+
+      <TargetSettings />
+
+      <section
+        className="rounded-2xl p-4"
+        style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
+      >
         <h2 className="mb-2 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Meest gedane oefeningen ({RANGE_OPTIONS.find((o) => o.key === range)?.label.toLowerCase()})
+          Meest gedane oefeningen ({rangeLabel})
         </h2>
         {topExercises.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>

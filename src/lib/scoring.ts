@@ -1,35 +1,10 @@
 import { MUSCLE_LABELS, type Exercise, type MuscleGroup } from '../data/exercises'
 import { getAllExercises } from './exerciseCatalog'
 import type { LogEntry } from './storage'
+import { getEffectiveTargets, type MuscleTarget } from './targets'
 
 export type MuscleStatus = 'low' | 'good' | 'high'
-
-export interface MuscleTarget {
-  min: number
-  max: number
-}
-
-/**
- * Richtwaarden voor "harde sets" per spiergroep per week.
- * Dit is een algemene, veelgebruikte vuistregel uit krachttraining-coaching
- * (vaak aangeduid als ergens tussen ~10-20 sets per spiergroep per week voor
- * spiergroei bij recreatieve sporters). Dit is GEEN exact wetenschappelijk
- * vastgesteld getal voor jouw specifieke situatie — zie het als een
- * startpunt dat je zelf kan bijstellen, niet als medisch/sportwetenschappelijk
- * voorschrift.
- */
-export const WEEKLY_SET_TARGETS: Record<MuscleGroup, MuscleTarget> = {
-  chest: { min: 10, max: 20 },
-  back: { min: 10, max: 20 },
-  quads: { min: 10, max: 20 },
-  shoulders: { min: 8, max: 16 },
-  hamstrings: { min: 8, max: 16 },
-  glutes: { min: 8, max: 16 },
-  biceps: { min: 6, max: 14 },
-  triceps: { min: 6, max: 14 },
-  calves: { min: 6, max: 14 },
-  core: { min: 6, max: 14 },
-}
+export type { MuscleTarget } from './targets'
 
 export interface MuscleScore {
   muscle: MuscleGroup
@@ -57,7 +32,7 @@ function weightedSetsByMuscle(
   exerciseById: Map<string, Exercise>,
 ): Record<MuscleGroup, number> {
   const totals = Object.fromEntries(
-    (Object.keys(WEEKLY_SET_TARGETS) as MuscleGroup[]).map((m) => [m, 0]),
+    (Object.keys(MUSCLE_LABELS) as MuscleGroup[]).map((m) => [m, 0]),
   ) as Record<MuscleGroup, number>
 
   for (const log of logs) {
@@ -85,11 +60,12 @@ function scoreFor(sets: number, target: MuscleTarget): { score: number; status: 
 
 export function computeMuscleScores(logs: LogEntry[], now: Date = new Date()): MuscleScore[] {
   const exerciseById = new Map<string, Exercise>(getAllExercises().map((e) => [e.id, e]))
+  const targets = getEffectiveTargets()
   const weekly = weightedSetsByMuscle(logs, 7, now, exerciseById)
   const last30d = weightedSetsByMuscle(logs, 30, now, exerciseById)
 
-  return (Object.keys(WEEKLY_SET_TARGETS) as MuscleGroup[]).map((muscle) => {
-    const target = WEEKLY_SET_TARGETS[muscle]
+  return (Object.keys(MUSCLE_LABELS) as MuscleGroup[]).map((muscle) => {
+    const target = targets[muscle]
     const weeklySets = Math.round(weekly[muscle] * 10) / 10
     const last30dWeeklyAverage = Math.round((last30d[muscle] / (30 / 7)) * 10) / 10
 
@@ -107,6 +83,34 @@ export function computeMuscleScores(logs: LogEntry[], now: Date = new Date()): M
       weeklyStatus: weeklyResult.status,
       last30dStatus: last30dResult.status,
     }
+  })
+}
+
+export interface MuscleAverage {
+  muscle: MuscleGroup
+  label: string
+  averagePerWeek: number
+  target: MuscleTarget
+  score: number
+  status: MuscleStatus
+}
+
+/**
+ * Gemiddeld aantal sets per week per spiergroep, over een zelf te kiezen periode
+ * (bijv. de laatste 90 dagen, of alle gelogde data). Gebruikt voor de
+ * statistiekenpagina, waar de periode instelbaar is i.p.v. vast op "deze week".
+ */
+export function computeMuscleWeeklyAverage(logs: LogEntry[], days: number, now: Date = new Date()): MuscleAverage[] {
+  const exerciseById = new Map<string, Exercise>(getAllExercises().map((e) => [e.id, e]))
+  const targets = getEffectiveTargets()
+  const totals = weightedSetsByMuscle(logs, days, now, exerciseById)
+  const weeks = days / 7
+
+  return (Object.keys(MUSCLE_LABELS) as MuscleGroup[]).map((muscle) => {
+    const target = targets[muscle]
+    const averagePerWeek = Math.round((totals[muscle] / weeks) * 10) / 10
+    const result = scoreFor(averagePerWeek, target)
+    return { muscle, label: MUSCLE_LABELS[muscle], averagePerWeek, target, score: result.score, status: result.status }
   })
 }
 
