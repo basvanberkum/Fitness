@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { daysSinceEarliestLog } from '../lib/chartData'
+import { buildAggregateMetricSeries, daysSinceEarliestLog, type AggregateMetric, type Granularity } from '../lib/chartData'
 import { getChartPalette, statusColorFromPalette } from '../lib/chartColors'
 import { findExercise } from '../lib/exerciseCatalog'
 import { computeMuscleWeeklyAverage } from '../lib/scoring'
@@ -23,12 +23,40 @@ const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
   { key: 'all', label: 'Alles' },
 ]
 
+type TrendRangeKey = '3m' | '6m' | '1j' | 'all'
+
+const TREND_RANGE_OPTIONS: { key: TrendRangeKey; label: string; days: number | null }[] = [
+  { key: '3m', label: '3M', days: 90 },
+  { key: '6m', label: '6M', days: 180 },
+  { key: '1j', label: '1J', days: 365 },
+  { key: 'all', label: 'Alles', days: null },
+]
+
+const TREND_GROUPBY_OPTIONS: { key: Granularity; label: string }[] = [
+  { key: 'week', label: 'Week' },
+  { key: 'month', label: 'Maand' },
+  { key: 'year', label: 'Jaar' },
+]
+
+const TREND_METRIC_OPTIONS: { key: AggregateMetric; label: string; unit: string }[] = [
+  { key: 'volume', label: 'Volume (reps × kg)', unit: 'kg' },
+  { key: 'sets', label: 'Totaal sets', unit: '' },
+  { key: 'reps', label: 'Totaal herhalingen', unit: '' },
+  { key: 'repsPerSet', label: 'Herhalingen per set (gem.)', unit: '' },
+  { key: 'workouts', label: 'Aantal trainingen', unit: '' },
+  { key: 'duration', label: 'Duur training (totaal)', unit: 'min' },
+]
+
 export function Stats({ logs }: { logs: LogEntry[] }) {
   const isDark = useDarkMode()
   const palette = useMemo(() => getChartPalette(isDark), [isDark])
   const now = useMemo(() => new Date(), [])
   const [range, setRange] = useState<RangeKey>('30d')
   const allExercises = useAllExercises()
+
+  const [trendMetric, setTrendMetric] = useState<AggregateMetric>('volume')
+  const [trendGroupBy, setTrendGroupBy] = useState<Granularity>('month')
+  const [trendRange, setTrendRange] = useState<TrendRangeKey>('6m')
 
   const rangeDays = useMemo(() => {
     if (range === '7d') return 7
@@ -38,6 +66,18 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
   }, [range, logs, now])
 
   const rangeLabel = RANGE_OPTIONS.find((o) => o.key === range)?.label.toLowerCase()
+
+  const trendRangeDays = useMemo(() => {
+    const opt = TREND_RANGE_OPTIONS.find((o) => o.key === trendRange)
+    return opt?.days ?? daysSinceEarliestLog(logs, now)
+  }, [trendRange, logs, now])
+
+  const trendPoints = useMemo(
+    () => buildAggregateMetricSeries(logs, trendRangeDays, trendGroupBy, trendMetric, now),
+    [logs, trendRangeDays, trendGroupBy, trendMetric, now],
+  )
+  const trendMetricInfo = TREND_METRIC_OPTIONS.find((m) => m.key === trendMetric)!
+  const trendXAxisInterval = Math.max(0, Math.ceil(trendPoints.length / 6) - 1)
 
   const muscleAverages = useMemo(() => {
     const data = computeMuscleWeeklyAverage(logs, rangeDays, now)
@@ -61,6 +101,112 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-5">
+      <section
+        className="rounded-2xl p-4"
+        style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
+      >
+        <h2 className="mb-3 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Trend over tijd
+        </h2>
+
+        <div className="flex gap-2">
+          <label className="flex-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            Grafiek
+            <select
+              value={trendMetric}
+              onChange={(e) => setTrendMetric(e.target.value as AggregateMetric)}
+              className="mt-1 w-full rounded-lg px-3 py-2 text-sm"
+              style={{ background: 'var(--surface-page)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+            >
+              {TREND_METRIC_OPTIONS.map((m) => (
+                <option key={m.key} value={m.key}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            Groeperen op
+            <select
+              value={trendGroupBy}
+              onChange={(e) => setTrendGroupBy(e.target.value as Granularity)}
+              className="mt-1 w-full rounded-lg px-3 py-2 text-sm"
+              style={{ background: 'var(--surface-page)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+            >
+              {TREND_GROUPBY_OPTIONS.map((g) => (
+                <option key={g.key} value={g.key}>
+                  {g.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-3 flex gap-2">
+          {TREND_RANGE_OPTIONS.map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => setTrendRange(opt.key)}
+              className="flex-1 rounded-full py-1.5 text-xs font-medium"
+              style={{
+                background: trendRange === opt.key ? 'var(--series-push)' : 'var(--surface-page)',
+                color: trendRange === opt.key ? '#fff' : 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-3" style={{ height: 240 }}>
+          {trendPoints.length === 0 ? (
+            <p className="py-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
+              Geen data in deze periode.
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={trendPoints} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                <CartesianGrid stroke={palette.gridline} strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="dateLabel"
+                  tick={{ fill: palette.textMuted, fontSize: 11 }}
+                  interval={trendXAxisInterval}
+                  axisLine={{ stroke: palette.baseline }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: palette.textMuted, fontSize: 11 }}
+                  allowDecimals={false}
+                  axisLine={false}
+                  tickLine={false}
+                  width={40}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: palette.surface1,
+                    border: `1px solid ${palette.gridline}`,
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                  labelStyle={{ color: palette.textSecondary }}
+                  formatter={(value) => [`${value}${trendMetricInfo.unit ? ` ${trendMetricInfo.unit}` : ''}`, trendMetricInfo.label]}
+                />
+                <Bar dataKey="value" fill={palette.seriesPush} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {trendMetric === 'duration' && (
+          <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+            Duur training is alleen bekend voor sessies waarvan een eindtijd is gelogd of geïmporteerd (CSV-kolom
+            "Einde training") — oudere of handmatig ingevoerde trainingen zonder eindtijd tellen hier als 0 minuten.
+          </p>
+        )}
+      </section>
+
       <div className="flex gap-2">
         {RANGE_OPTIONS.map((opt) => (
           <button
