@@ -13,7 +13,11 @@ export function NavBar({ active, onChange }: { active: Tab; onChange: (tab: Tab)
   return (
     <nav
       className="flex shrink-0 border-t"
-      style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}
+      style={{
+        background: 'var(--surface-1)',
+        borderColor: 'var(--border)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}
     >
       {TABS.map((tab) => (
         <button

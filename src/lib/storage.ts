@@ -110,6 +110,20 @@ export function exportLogsJson(): string {
   return JSON.stringify(readRaw(), null, 2)
 }
 
+const LAST_EXPORT_KEY = 'fitness-tracker:last-export:v1'
+
+/** Roep aan nadat de gebruiker daadwerkelijk een back-up heeft gedownload. */
+export function recordBackupExported() {
+  localStorage.setItem(LAST_EXPORT_KEY, new Date().toISOString())
+}
+
+/** Dagen sinds de laatste back-up-export, of null als er nog nooit één is gemaakt. */
+export function daysSinceLastBackup(now: Date = new Date()): number | null {
+  const raw = localStorage.getItem(LAST_EXPORT_KEY)
+  if (!raw) return null
+  return Math.floor((now.getTime() - new Date(raw).getTime()) / (24 * 60 * 60 * 1000))
+}
+
 export function importLogsJson(json: string) {
   const parsed = JSON.parse(json)
   if (!Array.isArray(parsed)) throw new Error('Ongeldig bestand: verwacht een lijst met logs')

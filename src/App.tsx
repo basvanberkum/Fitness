@@ -16,7 +16,11 @@ export default function App() {
     <>
       <header
         className="shrink-0 px-4 py-3"
-        style={{ background: 'var(--surface-1)', borderBottom: '1px solid var(--border)' }}
+        style={{
+          background: 'var(--surface-1)',
+          borderBottom: '1px solid var(--border)',
+          paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
+        }}
       >
         <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
           Fitness Tracker
@@ -24,7 +28,7 @@ export default function App() {
       </header>
 
       <main className="min-h-0 flex-1 overflow-y-auto">
-        {tab === 'dashboard' && <Dashboard logs={logs} />}
+        {tab === 'dashboard' && <Dashboard logs={logs} onGoToData={() => setTab('data')} />}
         {tab === 'log' && <LogWorkout logs={logs} />}
         {tab === 'history' && <HistoryLog logs={logs} />}
         {tab === 'stats' && <Stats logs={logs} />}

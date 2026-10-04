@@ -1,14 +1,16 @@
 import { useMemo } from 'react'
-import type { LogEntry } from '../lib/storage'
+import { daysSinceLastBackup, type LogEntry } from '../lib/storage'
 import { computeMuscleScores, computeOverallScore, generateTips } from '../lib/scoring'
 import { statusColorForScore } from '../lib/statusMeta'
 import { MuscleScoreCard } from './MuscleScoreCard'
 
-export function Dashboard({ logs }: { logs: LogEntry[] }) {
+export function Dashboard({ logs, onGoToData }: { logs: LogEntry[]; onGoToData: () => void }) {
   const now = useMemo(() => new Date(), [])
   const scores = useMemo(() => computeMuscleScores(logs, now), [logs, now])
   const overall = useMemo(() => computeOverallScore(scores), [scores])
   const tips = useMemo(() => generateTips(logs, now), [logs, now])
+  const backupAge = useMemo(() => daysSinceLastBackup(now), [now])
+  const showBackupReminder = logs.length > 0 && (backupAge === null || backupAge > 30)
 
   const sortedScores = useMemo(
     () => [...scores].sort((a, b) => a.weeklyScore - b.weeklyScore),
@@ -23,6 +25,22 @@ export function Dashboard({ logs }: { logs: LogEntry[] }) {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-5">
+      {showBackupReminder && (
+        <button
+          type="button"
+          onClick={onGoToData}
+          className="rounded-xl p-3 text-left text-xs"
+          style={{ background: 'var(--surface-1)', border: `1px solid var(--status-warning)` }}
+        >
+          <span style={{ color: 'var(--text-primary)' }}>
+            {backupAge === null
+              ? 'Je hebt nog nooit een back-up gemaakt.'
+              : `Je laatste back-up is ${backupAge} dagen geleden.`}
+          </span>{' '}
+          <span style={{ color: 'var(--series-push)' }}>Maak nu een back-up in "Data" →</span>
+        </button>
+      )}
+
       <section
         className="rounded-2xl p-6 text-center"
         style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}

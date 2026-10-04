@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { bulkAddLogs, clearAllLogs, exportLogsJson, type LogEntry } from '../lib/storage'
+import { bulkAddLogs, clearAllLogs, exportLogsJson, recordBackupExported, type LogEntry } from '../lib/storage'
 import { ImportCsv } from './ImportCsv'
 
 function downloadFile(content: string, filename: string, type: string) {
@@ -19,6 +19,7 @@ export function DataManagement() {
 
   function handleExport() {
     downloadFile(exportLogsJson(), `fitness-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
+    recordBackupExported()
   }
 
   async function handleJsonImport(file: File) {
