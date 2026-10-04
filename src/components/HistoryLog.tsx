@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { findExercise } from '../lib/exerciseCatalog'
-import { groupLogsByDay } from '../lib/history'
+import { groupLogsByDay, type DayGroup } from '../lib/history'
+import { computeSessionQualityScore, qualityScoreColor } from '../lib/sessionQuality'
 import { deleteLog, type LogEntry } from '../lib/storage'
 
 const PAGE_SIZE = 20
@@ -47,6 +48,49 @@ function ExerciseEntryRow({ entry }: { entry: LogEntry }) {
   )
 }
 
+function SessionQualityBadge({ group, logs }: { group: DayGroup; logs: LogEntry[] }) {
+  // Lazy: alleen berekend voor dagen die daadwerkelijk zichtbaar zijn gerenderd.
+  const score = useMemo(() => computeSessionQualityScore(group, logs), [group, logs])
+  return (
+    <span
+      className="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
+      style={{ background: qualityScoreColor(score.overall), color: 'white' }}
+      title="Inschatting van trainingskwaliteit (doelbijdrage, herstel, opbouw) — geen gevalideerd advies"
+    >
+      {score.overall.toFixed(1)}
+    </span>
+  )
+}
+
+function SessionQualityBreakdown({ group, logs }: { group: DayGroup; logs: LogEntry[] }) {
+  const score = useMemo(() => computeSessionQualityScore(group, logs), [group, logs])
+  return (
+    <div className="rounded-lg p-3 text-xs" style={{ background: 'var(--surface-page)', border: '1px solid var(--border)' }}>
+      <p className="mb-1.5 font-medium" style={{ color: 'var(--text-primary)' }}>
+        Trainingskwaliteit: {score.overall.toFixed(1)} / 10
+      </p>
+      <ul className="flex flex-col gap-0.5" style={{ color: 'var(--text-secondary)' }}>
+        <li>Doelbijdrage: {score.goalAlignment.toFixed(1)} / 10</li>
+        <li>Herstel (~48u richtlijn): {score.recovery.toFixed(1)} / 10</li>
+        <li>
+          Opbouw/tempo: {score.structure.toFixed(1)} / 10
+          {score.structureBasis === 'variety' && ' (schatting o.b.v. variatie, geen sessieduur bekend)'}
+        </li>
+      </ul>
+      {score.notes.length > 0 && (
+        <ul className="mt-1.5 flex flex-col gap-0.5 italic" style={{ color: 'var(--text-muted)' }}>
+          {score.notes.map((n, i) => (
+            <li key={i}>{n}</li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-1.5" style={{ color: 'var(--text-muted)' }}>
+        Dit is een heuristische inschatting op basis van vuistregels, geen gevalideerd trainingsadvies.
+      </p>
+    </div>
+  )
+}
+
 export function HistoryLog({ logs }: { logs: LogEntry[] }) {
   const dayGroups = useMemo(() => groupLogsByDay(logs), [logs])
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
@@ -61,7 +105,7 @@ export function HistoryLog({ logs }: { logs: LogEntry[] }) {
     })
   }
 
-  const visibleGroups = dayGroups.slice(0, visibleCount)
+  const visibleGroups = useMemo(() => dayGroups.slice(0, visibleCount), [dayGroups, visibleCount])
 
   return (
     <div className="flex flex-col gap-3 px-4 py-5">
@@ -88,7 +132,7 @@ export function HistoryLog({ logs }: { logs: LogEntry[] }) {
                     onClick={() => toggle(group.dateKey)}
                     className="flex w-full items-center justify-between gap-2 p-3 text-left"
                   >
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium capitalize" style={{ color: 'var(--text-primary)' }}>
                         {group.dateLabel}
                         {group.workoutNames.length > 0 && (
@@ -108,13 +152,17 @@ export function HistoryLog({ logs }: { logs: LogEntry[] }) {
                         </p>
                       )}
                     </div>
-                    <span className="shrink-0 text-xs" style={{ color: 'var(--series-push)' }}>
-                      {isOpen ? 'Verbergen' : 'Bekijken'}
-                    </span>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <SessionQualityBadge group={group} logs={logs} />
+                      <span className="text-xs" style={{ color: 'var(--series-push)' }}>
+                        {isOpen ? 'Verbergen' : 'Bekijken'}
+                      </span>
+                    </div>
                   </button>
 
                   {isOpen && (
                     <div className="flex flex-col gap-2 border-t p-3" style={{ borderColor: 'var(--border)' }}>
+                      <SessionQualityBreakdown group={group} logs={logs} />
                       {group.entries.map((entry) => (
                         <ExerciseEntryRow key={entry.id} entry={entry} />
                       ))}

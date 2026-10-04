@@ -1,18 +1,6 @@
 import { useMemo, useState } from 'react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  LabelList,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
-import { CATEGORY_LABELS } from '../data/exercises'
-import { buildCategoryVolumeSeries, daysSinceEarliestLog, granularityForRangeDays } from '../lib/chartData'
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { daysSinceEarliestLog } from '../lib/chartData'
 import { getChartPalette, statusColorFromPalette } from '../lib/chartColors'
 import { findExercise } from '../lib/exerciseCatalog'
 import { computeMuscleWeeklyAverage } from '../lib/scoring'
@@ -51,15 +39,10 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
 
   const rangeLabel = RANGE_OPTIONS.find((o) => o.key === range)?.label.toLowerCase()
 
-  const granularity = useMemo(() => granularityForRangeDays(rangeDays), [rangeDays])
-  const volumeData = useMemo(
-    () => buildCategoryVolumeSeries(logs, rangeDays, granularity, now),
-    [logs, rangeDays, granularity, now],
-  )
-
   const muscleAverages = useMemo(() => {
     const data = computeMuscleWeeklyAverage(logs, rangeDays, now)
-    return [...data].sort((a, b) => a.score - b.score)
+    // Hoogst scorend (best op schema) eerst.
+    return [...data].sort((a, b) => b.score - a.score)
   }, [logs, rangeDays, now])
 
   const topExercises = useMemo(() => {
@@ -75,8 +58,6 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
   }, [logs, rangeDays, now])
 
   const tickStyle = { fill: palette.textMuted, fontSize: 11 }
-  // Toon ongeveer 6 labels op de x-as, ongeacht hoeveel datapunten er zijn.
-  const xAxisInterval = Math.max(0, Math.ceil(volumeData.length / 6) - 1)
 
   return (
     <div className="flex flex-col gap-6 px-4 py-5">
@@ -97,52 +78,6 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
           </button>
         ))}
       </div>
-
-      <section
-        className="rounded-2xl p-4"
-        style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
-      >
-        <h2 className="mb-1 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Volume per categorie
-        </h2>
-        <p className="mb-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-          Aantal sets per {granularity === 'day' ? 'dag' : granularity === 'week' ? 'week' : 'maand'}, per type
-          oefening
-        </p>
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={volumeData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-              <CartesianGrid stroke={palette.gridline} strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="dateLabel"
-                tick={tickStyle}
-                interval={xAxisInterval}
-                axisLine={{ stroke: palette.baseline }}
-                tickLine={false}
-              />
-              <YAxis tick={tickStyle} allowDecimals={false} axisLine={false} tickLine={false} width={28} />
-              <Tooltip
-                contentStyle={{
-                  background: palette.surface1,
-                  border: `1px solid ${palette.gridline}`,
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-                labelStyle={{ color: palette.textSecondary }}
-              />
-              <Legend
-                verticalAlign="top"
-                height={28}
-                formatter={(value) => <span style={{ color: palette.textSecondary, fontSize: 12 }}>{value}</span>}
-              />
-              <Bar dataKey="push" name={CATEGORY_LABELS.push} stackId="volume" fill={palette.seriesPush} />
-              <Bar dataKey="pull" name={CATEGORY_LABELS.pull} stackId="volume" fill={palette.seriesPull} />
-              <Bar dataKey="legs" name={CATEGORY_LABELS.legs} stackId="volume" fill={palette.seriesLegs} />
-              <Bar dataKey="core" name={CATEGORY_LABELS.core} stackId="volume" fill={palette.seriesCore} radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
 
       <section
         className="rounded-2xl p-4"

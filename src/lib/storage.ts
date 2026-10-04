@@ -12,6 +12,8 @@ export interface LogEntry {
   sets: SetEntry[]
   /** Vrije titel voor de hele training, bijv. "Push", "Upper", "Legs + Side delts" */
   workoutName?: string
+  /** Duur van de hele trainingssessie in minuten, indien bekend (bijv. uit CSV-import) */
+  durationMinutes?: number
   note?: string
   /** De originele ingesproken/getypte tekst, voor controle achteraf */
   rawInput?: string

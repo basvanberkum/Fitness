@@ -7,7 +7,7 @@ import { guessColumnMapping, matchExerciseByFreeText, IMPORT_FIELD_LABELS, type 
 import { bulkAddLogs } from '../lib/storage'
 
 const REQUIRED_FIELDS: ImportField[] = ['date', 'exercise']
-const OPTIONAL_FIELDS: ImportField[] = ['weight', 'weightUnit', 'reps', 'setsCount', 'notes', 'workoutName']
+const OPTIONAL_FIELDS: ImportField[] = ['weight', 'weightUnit', 'reps', 'setsCount', 'notes', 'workoutName', 'endDate']
 const CATEGORIES: ExerciseCategory[] = ['push', 'pull', 'legs', 'core']
 const SKIP = '__skip__'
 

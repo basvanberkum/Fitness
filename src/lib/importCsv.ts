@@ -10,6 +10,7 @@ export interface ImportDraftGroup {
   date: Date
   sets: SetEntry[]
   workoutName?: string
+  durationMinutes?: number
 }
 
 export interface ImportParseResult {
@@ -78,6 +79,7 @@ export function buildImportDraft(csv: ParsedCsv, mapping: ColumnMapping): Import
   }
 
   const dateIdx = idx('date')
+  const endDateIdx = idx('endDate')
   const exerciseIdx = idx('exercise')
   const weightIdx = idx('weight')
   const weightUnitIdx = idx('weightUnit')
@@ -110,11 +112,16 @@ export function buildImportDraft(csv: ParsedCsv, mapping: ColumnMapping): Import
     const setsCount = setsCountIdx >= 0 ? Math.max(1, Math.round(Number(row[setsCountIdx]) || 1)) : 1
     const note = notesIdx >= 0 ? row[notesIdx]?.trim() || undefined : undefined
     const workoutName = workoutNameIdx >= 0 ? row[workoutNameIdx]?.trim() || undefined : undefined
+    const endDate = endDateIdx >= 0 ? parseFlexibleDate(row[endDateIdx] ?? '') : null
+    const durationMinutes =
+      endDate && endDate.getTime() > date.getTime()
+        ? Math.round((endDate.getTime() - date.getTime()) / 60000)
+        : undefined
 
     const key = `${rawExercise}|${date.toISOString().slice(0, 10)}`
     let group = groups.get(key)
     if (!group) {
-      group = { key, rawExerciseName: rawExercise, date, sets: [], workoutName }
+      group = { key, rawExerciseName: rawExercise, date, sets: [], workoutName, durationMinutes }
       groups.set(key, group)
     }
 
@@ -148,6 +155,7 @@ export function draftGroupsToLogEntries(
       date: group.date.toISOString(),
       sets: group.sets,
       workoutName: group.workoutName,
+      durationMinutes: group.durationMinutes,
       source: 'import',
     })
   }

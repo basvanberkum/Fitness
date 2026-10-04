@@ -2,10 +2,20 @@ import type { Exercise } from '../data/exercises'
 import { normalizeDutchText } from './dutchNumbers'
 import { getAllExercises } from './exerciseCatalog'
 
-export type ImportField = 'date' | 'exercise' | 'weight' | 'weightUnit' | 'reps' | 'setsCount' | 'notes' | 'workoutName'
+export type ImportField =
+  | 'date'
+  | 'endDate'
+  | 'exercise'
+  | 'weight'
+  | 'weightUnit'
+  | 'reps'
+  | 'setsCount'
+  | 'notes'
+  | 'workoutName'
 
 export const IMPORT_FIELD_LABELS: Record<ImportField, string> = {
-  date: 'Datum',
+  date: 'Datum (start)',
+  endDate: 'Einde training (optioneel, voor sessieduur)',
   exercise: 'Oefening',
   weight: 'Gewicht',
   weightUnit: 'Gewichtseenheid (kg/lbs)',
@@ -17,6 +27,7 @@ export const IMPORT_FIELD_LABELS: Record<ImportField, string> = {
 
 const FIELD_KEYWORDS: Record<ImportField, string[]> = {
   date: ['date', 'datum', 'workout date', 'start time', 'start training', 'starttijd', 'timestamp', 'start'],
+  endDate: ['end time', 'einde training', 'eindtijd', 'end date', 'einde'],
   exercise: ['exercise name', 'exercise', 'oefening', 'oefeningnaam'],
   weight: ['weight', 'gewicht', 'load', 'kg'],
   weightUnit: ['weight unit', 'unit', 'eenheid'],

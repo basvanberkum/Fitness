@@ -13,7 +13,7 @@ export function Dashboard({ logs, onGoToData }: { logs: LogEntry[]; onGoToData: 
   const showBackupReminder = logs.length > 0 && (backupAge === null || backupAge > 30)
 
   const sortedScores = useMemo(
-    () => [...scores].sort((a, b) => a.weeklyScore - b.weeklyScore),
+    () => [...scores].sort((a, b) => b.weeklyScore - a.weeklyScore),
     [scores],
   )
 
