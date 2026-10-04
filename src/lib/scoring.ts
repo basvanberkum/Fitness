@@ -48,6 +48,30 @@ function weightedSetsByMuscle(
   return totals
 }
 
+/** Gewogen volume (reps × kg) per spiergroep voor logs binnen de laatste `days` dagen. */
+function weightedVolumeByMuscle(
+  logs: LogEntry[],
+  days: number,
+  now: Date,
+  exerciseById: Map<string, Exercise>,
+): Record<MuscleGroup, number> {
+  const totals = Object.fromEntries(
+    (Object.keys(MUSCLE_LABELS) as MuscleGroup[]).map((m) => [m, 0]),
+  ) as Record<MuscleGroup, number>
+
+  for (const log of logs) {
+    if (!withinDays(log.date, days, now)) continue
+    const exercise = exerciseById.get(log.exerciseId)
+    if (!exercise) continue
+    const volume = log.sets.reduce((sum, s) => sum + s.reps * s.weight, 0)
+    for (const [muscle, weight] of Object.entries(exercise.muscles) as [MuscleGroup, number][]) {
+      totals[muscle] += volume * weight
+    }
+  }
+
+  return totals
+}
+
 function scoreFor(sets: number, target: MuscleTarget): { score: number; status: MuscleStatus } {
   if (sets < target.min) {
     return { score: Math.round((sets / target.min) * 100), status: 'low' }
@@ -90,6 +114,8 @@ export interface MuscleAverage {
   muscle: MuscleGroup
   label: string
   averagePerWeek: number
+  totalSets: number
+  totalVolume: number
   target: MuscleTarget
   score: number
   status: MuscleStatus
@@ -97,20 +123,31 @@ export interface MuscleAverage {
 
 /**
  * Gemiddeld aantal sets per week per spiergroep, over een zelf te kiezen periode
- * (bijv. de laatste 90 dagen, of alle gelogde data). Gebruikt voor de
- * statistiekenpagina, waar de periode instelbaar is i.p.v. vast op "deze week".
+ * (bijv. de laatste 90 dagen, of alle gelogde data), plus het totaal aantal sets
+ * en totaal volume in die periode. Gebruikt voor de statistiekenpagina, waar de
+ * periode instelbaar is i.p.v. vast op "deze week".
  */
 export function computeMuscleWeeklyAverage(logs: LogEntry[], days: number, now: Date = new Date()): MuscleAverage[] {
   const exerciseById = new Map<string, Exercise>(getAllExercises().map((e) => [e.id, e]))
   const targets = getEffectiveTargets()
   const totals = weightedSetsByMuscle(logs, days, now, exerciseById)
+  const volumes = weightedVolumeByMuscle(logs, days, now, exerciseById)
   const weeks = days / 7
 
   return (Object.keys(MUSCLE_LABELS) as MuscleGroup[]).map((muscle) => {
     const target = targets[muscle]
     const averagePerWeek = Math.round((totals[muscle] / weeks) * 10) / 10
     const result = scoreFor(averagePerWeek, target)
-    return { muscle, label: MUSCLE_LABELS[muscle], averagePerWeek, target, score: result.score, status: result.status }
+    return {
+      muscle,
+      label: MUSCLE_LABELS[muscle],
+      averagePerWeek,
+      totalSets: Math.round(totals[muscle] * 10) / 10,
+      totalVolume: Math.round(volumes[muscle]),
+      target,
+      score: result.score,
+      status: result.status,
+    }
   })
 }
 

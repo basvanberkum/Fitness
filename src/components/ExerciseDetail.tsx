@@ -4,7 +4,12 @@ import { MUSCLE_LABELS, type Exercise, type MuscleGroup } from '../data/exercise
 import { granularityForRangeDays } from '../lib/chartData'
 import { getChartPalette } from '../lib/chartColors'
 import { deleteCustomExercise, isCustomExerciseId } from '../lib/exerciseCatalog'
-import { buildExerciseProgressSeries, lastPerformedSummary, type ProgressMetric } from '../lib/exerciseProgress'
+import {
+  buildExerciseProgressSeries,
+  computeExerciseLifetimeStats,
+  lastPerformedSummary,
+  type ProgressMetric,
+} from '../lib/exerciseProgress'
 import type { LogEntry } from '../lib/storage'
 import { useDarkMode } from '../lib/useDarkMode'
 
@@ -59,6 +64,7 @@ export function ExerciseDetail({
     [logs, exercise.id, rangeDays, granularity, metric, now],
   )
   const last = useMemo(() => lastPerformedSummary(logs, exercise.id), [logs, exercise.id])
+  const lifetime = useMemo(() => computeExerciseLifetimeStats(logs, exercise.id), [logs, exercise.id])
   const metricInfo = METRIC_OPTIONS.find((m) => m.key === metric)!
   const xAxisInterval = Math.max(0, Math.ceil(points.length / 6) - 1)
 
@@ -89,6 +95,51 @@ export function ExerciseDetail({
           </p>
         )}
       </div>
+
+      {lifetime.totalSets > 0 && (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl p-3" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Beste 1RM (schatting)
+            </p>
+            <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {lifetime.bestE1rm} kg
+            </p>
+          </div>
+          <div className="rounded-xl p-3" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Zwaarste set
+            </p>
+            <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {lifetime.maxWeight} kg
+            </p>
+          </div>
+          <div className="rounded-xl p-3" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Gemiddeld gewicht
+            </p>
+            <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {lifetime.averageWeight} kg
+            </p>
+          </div>
+          <div className="rounded-xl p-3" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Totaal volume
+            </p>
+            <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {lifetime.totalVolume.toLocaleString('nl-NL')} kg
+            </p>
+          </div>
+          <div className="col-span-2 rounded-xl p-3" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Totaal aantal sets (alle tijd)
+            </p>
+            <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {lifetime.totalSets}
+            </p>
+          </div>
+        </div>
+      )}
 
       <label className="text-sm" style={{ color: 'var(--text-secondary)' }}>
         Grafiek

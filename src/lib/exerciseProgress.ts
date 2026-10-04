@@ -14,7 +14,7 @@ export interface ProgressPoint {
  * Dit is een veelgebruikte vuistregel-schatting, geen exacte meting — bij hoge
  * reps (>12) wordt de schatting minder betrouwbaar.
  */
-function estimatedOneRepMax(weight: number, reps: number): number {
+export function estimatedOneRepMax(weight: number, reps: number): number {
   if (reps <= 1) return weight
   return weight * (1 + reps / 30)
 }
@@ -61,6 +61,58 @@ export function buildExerciseProgressSeries(
   })
 
   return points.sort((a, b) => a.bucketKey.localeCompare(b.bucketKey))
+}
+
+export interface ExerciseLifetimeStats {
+  totalSets: number
+  totalSessions: number
+  totalVolume: number
+  maxWeight: number
+  bestE1rm: number
+  averageWeight: number
+  firstPerformed: string | null
+  lastPerformed: string | null
+}
+
+/** Statistieken over de hele historie van één oefening (al je gelogde data, niet periode-gebonden). */
+export function computeExerciseLifetimeStats(logs: LogEntry[], exerciseId: string): ExerciseLifetimeStats {
+  const relevant = logs.filter((l) => l.exerciseId === exerciseId)
+
+  let totalSets = 0
+  let totalVolume = 0
+  let maxWeight = 0
+  let bestE1rm = 0
+  let weightSum = 0
+  let weightedSetCount = 0
+  let first: string | null = null
+  let last: string | null = null
+
+  for (const log of relevant) {
+    if (!first || log.date < first) first = log.date
+    if (!last || log.date > last) last = log.date
+    for (const s of log.sets) {
+      totalSets++
+      totalVolume += s.reps * s.weight
+      if (s.weight > maxWeight) maxWeight = s.weight
+      const e1rm = estimatedOneRepMax(s.weight, s.reps)
+      if (e1rm > bestE1rm) bestE1rm = e1rm
+      if (s.weight > 0) {
+        weightSum += s.weight
+        weightedSetCount++
+      }
+    }
+  }
+
+  return {
+    totalSets,
+    totalSessions: relevant.length,
+    totalVolume: Math.round(totalVolume),
+    maxWeight: Math.round(maxWeight * 10) / 10,
+    bestE1rm: Math.round(bestE1rm * 10) / 10,
+    averageWeight: weightedSetCount > 0 ? Math.round((weightSum / weightedSetCount) * 10) / 10 : 0,
+    firstPerformed: first,
+    lastPerformed: last,
+  }
 }
 
 export interface LastPerformed {

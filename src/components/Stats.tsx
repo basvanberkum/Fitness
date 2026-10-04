@@ -194,7 +194,7 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
                 }}
                 labelStyle={{ color: palette.textSecondary }}
                 formatter={(value, _name, item) => [
-                  `${value} / week (doel ${item.payload.target.min}-${item.payload.target.max})`,
+                  `${value}/week (doel ${item.payload.target.min}-${item.payload.target.max}) · totaal ${item.payload.totalSets} sets, ${item.payload.totalVolume.toLocaleString('nl-NL')} kg volume`,
                   'Gemiddeld',
                 ]}
               />
@@ -212,6 +212,31 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
+
+        <table className="mt-3 w-full text-xs">
+          <thead>
+            <tr style={{ color: 'var(--text-muted)' }}>
+              <th className="pb-1 text-left font-medium">Spiergroep</th>
+              <th className="pb-1 text-right font-medium">Totaal sets</th>
+              <th className="pb-1 text-right font-medium">Totaal volume</th>
+            </tr>
+          </thead>
+          <tbody>
+            {muscleAverages.map((m) => (
+              <tr key={m.muscle} style={{ borderTop: `1px solid ${palette.gridline}` }}>
+                <td className="py-1" style={{ color: 'var(--text-primary)' }}>
+                  {m.label}
+                </td>
+                <td className="py-1 text-right" style={{ color: 'var(--text-secondary)' }}>
+                  {m.totalSets}
+                </td>
+                <td className="py-1 text-right" style={{ color: 'var(--text-secondary)' }}>
+                  {m.totalVolume.toLocaleString('nl-NL')} kg
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </section>
 
       <TargetSettings />

@@ -1,10 +1,11 @@
-export type Tab = 'dashboard' | 'log' | 'stats' | 'exercises' | 'data'
+export type Tab = 'dashboard' | 'log' | 'history' | 'stats' | 'exercises' | 'data'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'dashboard', label: 'Score' },
   { id: 'log', label: 'Loggen' },
-  { id: 'stats', label: 'Statistieken' },
-  { id: 'exercises', label: 'Oefeningen' },
+  { id: 'history', label: 'Historie' },
+  { id: 'stats', label: 'Stats' },
+  { id: 'exercises', label: 'Oefen.' },
   { id: 'data', label: 'Data' },
 ]
 
