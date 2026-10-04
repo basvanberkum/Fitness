@@ -107,7 +107,7 @@ export function Dashboard({ logs, onGoToData }: { logs: LogEntry[]; onGoToData: 
         </h2>
         <div className="flex flex-col gap-3">
           {sortedScores.map((score) => (
-            <MuscleScoreCard key={score.muscle} score={score} />
+            <MuscleScoreCard key={score.muscle} score={score} logs={logs} now={now} />
           ))}
         </div>
       </section>

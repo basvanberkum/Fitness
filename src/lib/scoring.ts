@@ -159,6 +159,58 @@ export function computeOverallScore(scores: MuscleScore[]): number {
   return Math.round(sum / scores.length)
 }
 
+export interface MuscleContribution {
+  exerciseId: string
+  exerciseName: string
+  /** Gewicht van deze spiergroep in de oefening: 1 = primaire spier (direct), <1 = secundair (indirect). */
+  weight: number
+  totalSets: number
+  /** totalSets × weight — de bijdrage die daadwerkelijk meetelt in de score. */
+  weightedSets: number
+  lastDate: string
+}
+
+/**
+ * Onderbouwing van de score: welke oefeningen binnen de laatste `days` dagen sets hebben
+ * bijgedragen aan deze spiergroep (direct of indirect via het gewicht in de
+ * oefeningbibliotheek), gegroepeerd per oefening en gesorteerd op grootste bijdrage eerst.
+ */
+export function computeMuscleContributions(
+  logs: LogEntry[],
+  muscle: MuscleGroup,
+  days: number,
+  now: Date = new Date(),
+): MuscleContribution[] {
+  const exerciseById = new Map<string, Exercise>(getAllExercises().map((e) => [e.id, e]))
+  const byExercise = new Map<string, { weight: number; totalSets: number; lastDate: string }>()
+
+  for (const log of logs) {
+    if (!withinDays(log.date, days, now)) continue
+    const exercise = exerciseById.get(log.exerciseId)
+    const weight = exercise?.muscles[muscle] ?? 0
+    if (!exercise || weight <= 0) continue
+
+    const existing = byExercise.get(log.exerciseId)
+    if (existing) {
+      existing.totalSets += log.sets.length
+      if (new Date(log.date) > new Date(existing.lastDate)) existing.lastDate = log.date
+    } else {
+      byExercise.set(log.exerciseId, { weight, totalSets: log.sets.length, lastDate: log.date })
+    }
+  }
+
+  return [...byExercise.entries()]
+    .map(([exerciseId, v]) => ({
+      exerciseId,
+      exerciseName: exerciseById.get(exerciseId)?.name ?? exerciseId,
+      weight: v.weight,
+      totalSets: v.totalSets,
+      weightedSets: Math.round(v.totalSets * v.weight * 10) / 10,
+      lastDate: v.lastDate,
+    }))
+    .sort((a, b) => b.weightedSets - a.weightedSets)
+}
+
 export interface ExerciseTip {
   muscle: MuscleGroup
   muscleLabel: string
