@@ -4,10 +4,19 @@ import { parseCsv, type ParsedCsv } from '../lib/csv'
 import { useAllExercises } from '../lib/useAllExercises'
 import { buildImportDraft, draftGroupsToLogEntries, type ColumnMapping, type ImportParseResult } from '../lib/importCsv'
 import { guessColumnMapping, matchExerciseByFreeText, IMPORT_FIELD_LABELS, type ImportField } from '../lib/importMapping'
-import { bulkAddLogs } from '../lib/storage'
+import { bulkAddBodyWeightEntries, bulkAddLogs } from '../lib/storage'
 
 const REQUIRED_FIELDS: ImportField[] = ['date', 'exercise']
-const OPTIONAL_FIELDS: ImportField[] = ['weight', 'weightUnit', 'reps', 'setsCount', 'notes', 'workoutName', 'endDate']
+const OPTIONAL_FIELDS: ImportField[] = [
+  'weight',
+  'weightUnit',
+  'reps',
+  'setsCount',
+  'notes',
+  'workoutName',
+  'endDate',
+  'bodyWeight',
+]
 const CATEGORIES: ExerciseCategory[] = ['push', 'pull', 'legs', 'core']
 const SKIP = '__skip__'
 
@@ -21,7 +30,9 @@ export function ImportCsv() {
   const [draft, setDraft] = useState<ImportParseResult | null>(null)
   const [exerciseChoice, setExerciseChoice] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<{ added: number; skippedDuplicates: number } | null>(null)
+  const [result, setResult] = useState<{ added: number; skippedDuplicates: number; bodyWeightAdded: number } | null>(
+    null,
+  )
   const allExercises = useAllExercises()
 
   async function handleFile(file: File) {
@@ -71,7 +82,8 @@ export function ImportCsv() {
     )
     const entries = draftGroupsToLogEntries(draft.groups, exerciseIdByName)
     const res = bulkAddLogs(entries)
-    setResult(res)
+    const bodyWeightRes = bulkAddBodyWeightEntries(draft.bodyWeightEntries)
+    setResult({ ...res, bodyWeightAdded: bodyWeightRes.added + bodyWeightRes.updated })
     setStep('done')
   }
 
@@ -330,6 +342,11 @@ export function ImportCsv() {
             {result.added} trainingen geïmporteerd
             {result.skippedDuplicates > 0 && <> ({result.skippedDuplicates} duplicaten overgeslagen)</>}.
           </p>
+          {result.bodyWeightAdded > 0 && (
+            <p className="mt-1 text-sm" style={{ color: 'var(--status-good)' }}>
+              {result.bodyWeightAdded} lichaamsgewicht-metingen verwerkt.
+            </p>
+          )}
           <button
             type="button"
             onClick={reset}

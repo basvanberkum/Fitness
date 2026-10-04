@@ -12,6 +12,7 @@ export type ImportField =
   | 'setsCount'
   | 'notes'
   | 'workoutName'
+  | 'bodyWeight'
 
 export const IMPORT_FIELD_LABELS: Record<ImportField, string> = {
   date: 'Datum (start)',
@@ -23,6 +24,7 @@ export const IMPORT_FIELD_LABELS: Record<ImportField, string> = {
   setsCount: 'Aantal sets',
   notes: 'Notitie',
   workoutName: 'Workout naam',
+  bodyWeight: 'Lichaamsgewicht (optioneel)',
 }
 
 const FIELD_KEYWORDS: Record<ImportField, string[]> = {
@@ -35,6 +37,7 @@ const FIELD_KEYWORDS: Record<ImportField, string[]> = {
   setsCount: ['sets', 'set count', 'number of sets', 'aantal sets', 'setjes'],
   notes: ['notes', 'notitie', 'notities', 'opmerking', 'comment', 'workout notes'],
   workoutName: ['workout name', 'workout naam', 'session name', 'routine', 'naam'],
+  bodyWeight: ['lichaamsgewicht', 'body weight', 'bodyweight'],
 }
 
 // Kolommen die duiden op "één rij per set" i.p.v. "één rij per oefening" (zoals bij de Strong-app export).

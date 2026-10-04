@@ -18,6 +18,7 @@ export interface ImportParseResult {
   distinctExerciseNames: string[]
   skippedRows: number
   totalRows: number
+  bodyWeightEntries: { date: string; weightKg: number }[]
 }
 
 /** Best-effort datumparser voor uiteenlopende export-formaten (ISO, DD-MM-JJJJ, DD/MM/JJJJ, met/zonder tijd). */
@@ -87,15 +88,29 @@ export function buildImportDraft(csv: ParsedCsv, mapping: ColumnMapping): Import
   const setsCountIdx = idx('setsCount')
   const notesIdx = idx('notes')
   const workoutNameIdx = idx('workoutName')
+  const bodyWeightIdx = idx('bodyWeight')
 
   const groups = new Map<string, ImportDraftGroup>()
   const exerciseNames = new Set<string>()
+  const bodyWeightByDate = new Map<string, number>()
   let skippedRows = 0
 
   for (const row of csv.rows) {
     const rawDate = dateIdx >= 0 ? row[dateIdx] : ''
     const rawExercise = exerciseIdx >= 0 ? row[exerciseIdx]?.trim() : ''
     const date = rawDate ? parseFlexibleDate(rawDate) : null
+
+    if (date && bodyWeightIdx >= 0) {
+      const rawBodyWeight = row[bodyWeightIdx]?.trim()
+      if (rawBodyWeight) {
+        const unit = normalizeUnit(weightUnitIdx >= 0 ? row[weightUnitIdx] : undefined)
+        const rawValue = parseFloat(rawBodyWeight.replace(',', '.'))
+        if (Number.isFinite(rawValue) && rawValue > 0) {
+          const weightKg = unit === 'lbs' ? lbsToKg(rawValue) : rawValue
+          bodyWeightByDate.set(date.toISOString().slice(0, 10), weightKg)
+        }
+      }
+    }
 
     if (!date || !rawExercise) {
       skippedRows++
@@ -139,6 +154,9 @@ export function buildImportDraft(csv: ParsedCsv, mapping: ColumnMapping): Import
     distinctExerciseNames: [...exerciseNames].sort((a, b) => a.localeCompare(b)),
     skippedRows,
     totalRows: csv.rows.length,
+    bodyWeightEntries: [...bodyWeightByDate.entries()]
+      .map(([date, weightKg]) => ({ date, weightKg }))
+      .sort((a, b) => a.date.localeCompare(b.date)),
   }
 }
 

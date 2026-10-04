@@ -1,6 +1,6 @@
 import type { ExerciseCategory } from '../data/exercises'
 import { getAllExercises } from './exerciseCatalog'
-import type { LogEntry } from './storage'
+import type { BodyWeightEntry, LogEntry } from './storage'
 
 export type Granularity = 'day' | 'week' | 'month' | 'year'
 
@@ -176,6 +176,61 @@ export function buildAggregateMetricSeries(
       }
       return { bucketKey, dateLabel, value }
     })
+}
+
+export interface BodyWeightPoint {
+  bucketKey: string
+  dateLabel: string
+  /** Gemiddelde van de bekende metingen in deze periode, of null als er geen meting was. */
+  value: number | null
+}
+
+/**
+ * Lichaamsgewicht-trend per week/maand/jaar: gemiddelde van de bekende metingen in elke
+ * periode. Periodes zonder meting krijgen `value: null` (i.p.v. 0), zodat de grafiek een
+ * eerlijk gat laat zien in plaats van een misleidende duik naar 0 kg.
+ */
+export function buildBodyWeightSeries(
+  entries: BodyWeightEntry[],
+  rangeDays: number,
+  granularity: Granularity,
+  now: Date = new Date(),
+): BodyWeightPoint[] {
+  const startDate = new Date(now)
+  startDate.setDate(startDate.getDate() - rangeDays + 1)
+  startDate.setHours(0, 0, 0, 0)
+
+  const buckets = new Map<string, { dateLabel: string; sum: number; count: number }>()
+
+  const cursor = new Date(startDate)
+  while (cursor <= now) {
+    const key = bucketKeyFor(cursor, granularity)
+    if (!buckets.has(key)) {
+      buckets.set(key, { dateLabel: labelFor(cursor, granularity), sum: 0, count: 0 })
+    }
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  for (const entry of entries) {
+    const entryDate = new Date(entry.date)
+    if (entryDate < startDate || entryDate > now) continue
+    const key = bucketKeyFor(entryDate, granularity)
+    let bucket = buckets.get(key)
+    if (!bucket) {
+      bucket = { dateLabel: labelFor(entryDate, granularity), sum: 0, count: 0 }
+      buckets.set(key, bucket)
+    }
+    bucket.sum += entry.weightKg
+    bucket.count += 1
+  }
+
+  return [...buckets.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([bucketKey, { dateLabel, sum, count }]) => ({
+      bucketKey,
+      dateLabel,
+      value: count > 0 ? Math.round((sum / count) * 10) / 10 : null,
+    }))
 }
 
 /** Aantal dagen tussen nu en de oudste log (minimaal 1), voor een "alles"-weergave. */

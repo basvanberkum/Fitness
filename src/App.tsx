@@ -6,11 +6,13 @@ import { HistoryLog } from './components/HistoryLog'
 import { LogWorkout } from './components/LogWorkout'
 import { NavBar, type Tab } from './components/NavBar'
 import { Stats } from './components/Stats'
+import { useBodyWeightEntries } from './lib/useBodyWeightEntries'
 import { useLogs } from './lib/useLogs'
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('dashboard')
   const logs = useLogs()
+  const bodyWeightEntries = useBodyWeightEntries()
 
   return (
     <>
@@ -31,7 +33,7 @@ export default function App() {
         {tab === 'dashboard' && <Dashboard logs={logs} onGoToData={() => setTab('data')} />}
         {tab === 'log' && <LogWorkout logs={logs} />}
         {tab === 'history' && <HistoryLog logs={logs} />}
-        {tab === 'stats' && <Stats logs={logs} />}
+        {tab === 'stats' && <Stats logs={logs} bodyWeightEntries={bodyWeightEntries} />}
         {tab === 'exercises' && <ExerciseBrowser logs={logs} />}
         {tab === 'data' && <DataManagement />}
       </main>

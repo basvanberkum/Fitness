@@ -108,8 +108,61 @@ export function getRecentWorkoutNames(limit = 15): string[] {
   return [...seen]
 }
 
-export function exportLogsJson(): string {
-  return JSON.stringify(readRaw(), null, 2)
+export interface BodyWeightEntry {
+  /** Kalenderdag, YYYY-MM-DD */
+  date: string
+  weightKg: number
+}
+
+const BODYWEIGHT_STORAGE_KEY = 'fitness-tracker:bodyweight:v1'
+
+function readBodyWeightRaw(): BodyWeightEntry[] {
+  try {
+    const raw = localStorage.getItem(BODYWEIGHT_STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+  } catch {
+    return []
+  }
+}
+
+function writeBodyWeightRaw(entries: BodyWeightEntry[]) {
+  localStorage.setItem(BODYWEIGHT_STORAGE_KEY, JSON.stringify(entries))
+  window.dispatchEvent(new CustomEvent('fitness-tracker:bodyweight-changed'))
+}
+
+export function getBodyWeightEntries(): BodyWeightEntry[] {
+  return readBodyWeightRaw().sort((a, b) => a.date.localeCompare(b.date))
+}
+
+/** Voegt lichaamsgewicht-metingen toe (bijv. uit een import); per dag wordt maar één meting bewaard. */
+export function bulkAddBodyWeightEntries(entries: BodyWeightEntry[]): { added: number; updated: number } {
+  const byDate = new Map(readBodyWeightRaw().map((e) => [e.date, e.weightKg]))
+  let added = 0
+  let updated = 0
+  for (const entry of entries) {
+    if (!byDate.has(entry.date)) added++
+    else if (byDate.get(entry.date) !== entry.weightKg) updated++
+    byDate.set(entry.date, entry.weightKg)
+  }
+  writeBodyWeightRaw([...byDate.entries()].map(([date, weightKg]) => ({ date, weightKg })))
+  return { added, updated }
+}
+
+export function clearAllBodyWeightEntries() {
+  writeBodyWeightRaw([])
+}
+
+interface BackupFile {
+  logs: LogEntry[]
+  bodyWeight: BodyWeightEntry[]
+}
+
+export function exportBackupJson(): string {
+  const backup: BackupFile = { logs: readRaw(), bodyWeight: readBodyWeightRaw() }
+  return JSON.stringify(backup, null, 2)
 }
 
 const LAST_EXPORT_KEY = 'fitness-tracker:last-export:v1'
@@ -126,8 +179,36 @@ export function daysSinceLastBackup(now: Date = new Date()): number | null {
   return Math.floor((now.getTime() - new Date(raw).getTime()) / (24 * 60 * 60 * 1000))
 }
 
-export function importLogsJson(json: string) {
+/**
+ * Importeert een back-up-bestand: ondersteunt zowel het huidige formaat
+ * ({ logs, bodyWeight }) als het oudere formaat (alleen een array van logs),
+ * zodat eerder gedownloade back-ups ook nu nog werken.
+ */
+export function importBackupJson(json: string): {
+  logs: { added: number; skippedDuplicates: number }
+  bodyWeight: { added: number; updated: number }
+} {
   const parsed = JSON.parse(json)
-  if (!Array.isArray(parsed)) throw new Error('Ongeldig bestand: verwacht een lijst met logs')
-  writeRaw(parsed)
+
+  if (Array.isArray(parsed)) {
+    const entries: Omit<LogEntry, 'id'>[] = parsed.map((entry: LogEntry) => {
+      const { id: _id, ...rest } = entry
+      return rest
+    })
+    return { logs: bulkAddLogs(entries), bodyWeight: { added: 0, updated: 0 } }
+  }
+
+  if (parsed && Array.isArray(parsed.logs)) {
+    const entries: Omit<LogEntry, 'id'>[] = parsed.logs.map((entry: LogEntry) => {
+      const { id: _id, ...rest } = entry
+      return rest
+    })
+    const logsResult = bulkAddLogs(entries)
+    const bodyWeightResult = Array.isArray(parsed.bodyWeight)
+      ? bulkAddBodyWeightEntries(parsed.bodyWeight)
+      : { added: 0, updated: 0 }
+    return { logs: logsResult, bodyWeight: bodyWeightResult }
+  }
+
+  throw new Error('Ongeldig bestand: verwacht een back-up van deze app')
 }

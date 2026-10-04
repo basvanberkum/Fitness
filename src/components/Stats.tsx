@@ -1,12 +1,18 @@
 import { useMemo, useState } from 'react'
-import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { buildAggregateMetricSeries, daysSinceEarliestLog, type AggregateMetric, type Granularity } from '../lib/chartData'
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import {
+  buildAggregateMetricSeries,
+  buildBodyWeightSeries,
+  daysSinceEarliestLog,
+  type AggregateMetric,
+  type Granularity,
+} from '../lib/chartData'
 import { getChartPalette, statusColorFromPalette } from '../lib/chartColors'
 import { findExercise } from '../lib/exerciseCatalog'
 import { computeMuscleWeeklyAverage } from '../lib/scoring'
 import { useAllExercises } from '../lib/useAllExercises'
 import { useDarkMode } from '../lib/useDarkMode'
-import type { LogEntry } from '../lib/storage'
+import type { BodyWeightEntry, LogEntry } from '../lib/storage'
 import { TargetSettings } from './TargetSettings'
 
 function withinDays(dateIso: string, days: number, now: Date): boolean {
@@ -38,23 +44,26 @@ const TREND_GROUPBY_OPTIONS: { key: Granularity; label: string }[] = [
   { key: 'year', label: 'Jaar' },
 ]
 
-const TREND_METRIC_OPTIONS: { key: AggregateMetric; label: string; unit: string }[] = [
+type TrendMetric = AggregateMetric | 'bodyWeight'
+
+const TREND_METRIC_OPTIONS: { key: TrendMetric; label: string; unit: string }[] = [
   { key: 'volume', label: 'Volume (reps × kg)', unit: 'kg' },
   { key: 'sets', label: 'Totaal sets', unit: '' },
   { key: 'reps', label: 'Totaal herhalingen', unit: '' },
   { key: 'repsPerSet', label: 'Herhalingen per set (gem.)', unit: '' },
   { key: 'workouts', label: 'Aantal trainingen', unit: '' },
   { key: 'duration', label: 'Duur training (totaal)', unit: 'min' },
+  { key: 'bodyWeight', label: 'Lichaamsgewicht (gem.)', unit: 'kg' },
 ]
 
-export function Stats({ logs }: { logs: LogEntry[] }) {
+export function Stats({ logs, bodyWeightEntries }: { logs: LogEntry[]; bodyWeightEntries: BodyWeightEntry[] }) {
   const isDark = useDarkMode()
   const palette = useMemo(() => getChartPalette(isDark), [isDark])
   const now = useMemo(() => new Date(), [])
   const [range, setRange] = useState<RangeKey>('30d')
   const allExercises = useAllExercises()
 
-  const [trendMetric, setTrendMetric] = useState<AggregateMetric>('volume')
+  const [trendMetric, setTrendMetric] = useState<TrendMetric>('volume')
   const [trendGroupBy, setTrendGroupBy] = useState<Granularity>('month')
   const [trendRange, setTrendRange] = useState<TrendRangeKey>('6m')
 
@@ -72,12 +81,13 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
     return opt?.days ?? daysSinceEarliestLog(logs, now)
   }, [trendRange, logs, now])
 
-  const trendPoints = useMemo(
-    () => buildAggregateMetricSeries(logs, trendRangeDays, trendGroupBy, trendMetric, now),
-    [logs, trendRangeDays, trendGroupBy, trendMetric, now],
-  )
+  const trendPoints = useMemo(() => {
+    if (trendMetric === 'bodyWeight') return buildBodyWeightSeries(bodyWeightEntries, trendRangeDays, trendGroupBy, now)
+    return buildAggregateMetricSeries(logs, trendRangeDays, trendGroupBy, trendMetric, now)
+  }, [logs, bodyWeightEntries, trendRangeDays, trendGroupBy, trendMetric, now])
   const trendMetricInfo = TREND_METRIC_OPTIONS.find((m) => m.key === trendMetric)!
   const trendXAxisInterval = Math.max(0, Math.ceil(trendPoints.length / 6) - 1)
+  const trendHasAnyValue = trendPoints.some((p) => p.value !== null)
 
   const muscleAverages = useMemo(() => {
     const data = computeMuscleWeeklyAverage(logs, rangeDays, now)
@@ -161,40 +171,71 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
         </div>
 
         <div className="mt-3" style={{ height: 240 }}>
-          {trendPoints.length === 0 ? (
+          {trendPoints.length === 0 || (trendMetric === 'bodyWeight' && !trendHasAnyValue) ? (
             <p className="py-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
               Geen data in deze periode.
             </p>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={trendPoints} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                <CartesianGrid stroke={palette.gridline} strokeDasharray="3 3" vertical={false} />
-                <XAxis
-                  dataKey="dateLabel"
-                  tick={{ fill: palette.textMuted, fontSize: 11 }}
-                  interval={trendXAxisInterval}
-                  axisLine={{ stroke: palette.baseline }}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: palette.textMuted, fontSize: 11 }}
-                  allowDecimals={false}
-                  axisLine={false}
-                  tickLine={false}
-                  width={40}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: palette.surface1,
-                    border: `1px solid ${palette.gridline}`,
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  labelStyle={{ color: palette.textSecondary }}
-                  formatter={(value) => [`${value}${trendMetricInfo.unit ? ` ${trendMetricInfo.unit}` : ''}`, trendMetricInfo.label]}
-                />
-                <Bar dataKey="value" fill={palette.seriesPush} radius={[4, 4, 0, 0]} />
-              </BarChart>
+              {trendMetric === 'bodyWeight' ? (
+                <LineChart data={trendPoints} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid stroke={palette.gridline} strokeDasharray="3 3" vertical={false} />
+                  <XAxis
+                    dataKey="dateLabel"
+                    tick={{ fill: palette.textMuted, fontSize: 11 }}
+                    interval={trendXAxisInterval}
+                    axisLine={{ stroke: palette.baseline }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: palette.textMuted, fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={40}
+                    domain={[(min: number) => Math.floor(min - 1), (max: number) => Math.ceil(max + 1)]}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: palette.surface1,
+                      border: `1px solid ${palette.gridline}`,
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                    labelStyle={{ color: palette.textSecondary }}
+                    formatter={(value) => [value == null ? 'geen meting' : `${value} ${trendMetricInfo.unit}`, trendMetricInfo.label]}
+                  />
+                  <Line type="monotone" dataKey="value" stroke={palette.seriesPush} strokeWidth={2} connectNulls dot={{ r: 3 }} />
+                </LineChart>
+              ) : (
+                <BarChart data={trendPoints} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid stroke={palette.gridline} strokeDasharray="3 3" vertical={false} />
+                  <XAxis
+                    dataKey="dateLabel"
+                    tick={{ fill: palette.textMuted, fontSize: 11 }}
+                    interval={trendXAxisInterval}
+                    axisLine={{ stroke: palette.baseline }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: palette.textMuted, fontSize: 11 }}
+                    allowDecimals={false}
+                    axisLine={false}
+                    tickLine={false}
+                    width={40}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: palette.surface1,
+                      border: `1px solid ${palette.gridline}`,
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                    labelStyle={{ color: palette.textSecondary }}
+                    formatter={(value) => [`${value}${trendMetricInfo.unit ? ` ${trendMetricInfo.unit}` : ''}`, trendMetricInfo.label]}
+                  />
+                  <Bar dataKey="value" fill={palette.seriesPush} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              )}
             </ResponsiveContainer>
           )}
         </div>
@@ -203,6 +244,13 @@ export function Stats({ logs }: { logs: LogEntry[] }) {
           <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
             Duur training is alleen bekend voor sessies waarvan een eindtijd is gelogd of geïmporteerd (CSV-kolom
             "Einde training") — oudere of handmatig ingevoerde trainingen zonder eindtijd tellen hier als 0 minuten.
+          </p>
+        )}
+        {trendMetric === 'bodyWeight' && (
+          <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+            Gebaseerd op de lichaamsgewicht-kolom uit je CSV-import, die vaak niet bij elke training is ingevuld.
+            Periodes zonder meting worden overgeslagen; de lijn verbindt de bekende metingen, ook over een gat
+            zonder data heen.
           </p>
         )}
       </section>

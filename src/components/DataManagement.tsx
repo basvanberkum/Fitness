@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { bulkAddLogs, clearAllLogs, exportLogsJson, recordBackupExported, type LogEntry } from '../lib/storage'
+import { clearAllBodyWeightEntries, clearAllLogs, exportBackupJson, importBackupJson, recordBackupExported } from '../lib/storage'
 import { ImportCsv } from './ImportCsv'
 
 function downloadFile(content: string, filename: string, type: string) {
@@ -14,11 +14,15 @@ function downloadFile(content: string, filename: string, type: string) {
 
 export function DataManagement() {
   const [confirmingClear, setConfirmingClear] = useState(false)
-  const [jsonImportResult, setJsonImportResult] = useState<{ added: number; skippedDuplicates: number } | null>(null)
+  const [jsonImportResult, setJsonImportResult] = useState<{
+    added: number
+    skippedDuplicates: number
+    bodyWeightAdded: number
+  } | null>(null)
   const [jsonImportError, setJsonImportError] = useState<string | null>(null)
 
   function handleExport() {
-    downloadFile(exportLogsJson(), `fitness-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
+    downloadFile(exportBackupJson(), `fitness-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
     recordBackupExported()
   }
 
@@ -27,14 +31,12 @@ export function DataManagement() {
     setJsonImportResult(null)
     try {
       const text = await file.text()
-      const parsed = JSON.parse(text)
-      if (!Array.isArray(parsed)) throw new Error('not an array')
-      const entries: Omit<LogEntry, 'id'>[] = parsed.map((entry: LogEntry) => {
-        const { id: _id, ...rest } = entry
-        return rest
+      const result = importBackupJson(text)
+      setJsonImportResult({
+        added: result.logs.added,
+        skippedDuplicates: result.logs.skippedDuplicates,
+        bodyWeightAdded: result.bodyWeight.added + result.bodyWeight.updated,
       })
-      const result = bulkAddLogs(entries)
-      setJsonImportResult(result)
     } catch {
       setJsonImportError('Kon dit bestand niet importeren. Is het een geldige JSON back-up van deze app?')
     }
@@ -42,6 +44,7 @@ export function DataManagement() {
 
   function handleClear() {
     clearAllLogs()
+    clearAllBodyWeightEntries()
     setConfirmingClear(false)
   }
 
@@ -91,7 +94,8 @@ export function DataManagement() {
         {jsonImportResult && (
           <p className="mt-2 text-xs" style={{ color: 'var(--status-good)' }}>
             {jsonImportResult.added} trainingen geïmporteerd
-            {jsonImportResult.skippedDuplicates > 0 && <> ({jsonImportResult.skippedDuplicates} duplicaten overgeslagen)</>}.
+            {jsonImportResult.skippedDuplicates > 0 && <> ({jsonImportResult.skippedDuplicates} duplicaten overgeslagen)</>}
+            {jsonImportResult.bodyWeightAdded > 0 && <> · {jsonImportResult.bodyWeightAdded} lichaamsgewicht-metingen</>}.
           </p>
         )}
       </section>
