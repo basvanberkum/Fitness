@@ -143,6 +143,7 @@ export function HistoryLog({ logs }: { logs: LogEntry[] }) {
                       </p>
                       <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
                         {group.entries.length} oefening{group.entries.length === 1 ? '' : 'en'} · {group.totalSets} sets
+                        {group.durationMinutes !== null && <> · {group.durationMinutes} min</>}
                       </p>
                       {!isOpen && (
                         <p className="mt-1 truncate text-xs" style={{ color: 'var(--text-muted)' }}>

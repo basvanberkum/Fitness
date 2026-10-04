@@ -6,6 +6,9 @@ export interface DayGroup {
   entries: LogEntry[]
   totalSets: number
   workoutNames: string[]
+  /** Sessieduur in minuten, indien bekend (max over de dag i.p.v. som, want CSV-import
+   * herhaalt de sessieduur op elke oefeningregel van dezelfde training). */
+  durationMinutes: number | null
 }
 
 function dayKey(dateIso: string): string {
@@ -32,12 +35,14 @@ export function groupLogsByDay(logs: LogEntry[]): DayGroup[] {
       month: 'short',
       year: 'numeric',
     })
+    const durations = sorted.map((e) => e.durationMinutes).filter((d): d is number => !!d && d > 0)
     return {
       dateKey,
       dateLabel,
       entries: sorted,
       totalSets: sorted.reduce((sum, e) => sum + e.sets.length, 0),
       workoutNames,
+      durationMinutes: durations.length > 0 ? Math.max(...durations) : null,
     }
   })
 

@@ -30,9 +30,12 @@ export function ImportCsv() {
   const [draft, setDraft] = useState<ImportParseResult | null>(null)
   const [exerciseChoice, setExerciseChoice] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<{ added: number; skippedDuplicates: number; bodyWeightAdded: number } | null>(
-    null,
-  )
+  const [result, setResult] = useState<{
+    added: number
+    skippedDuplicates: number
+    updated: number
+    bodyWeightAdded: number
+  } | null>(null)
   const allExercises = useAllExercises()
 
   async function handleFile(file: File) {
@@ -342,6 +345,11 @@ export function ImportCsv() {
             {result.added} trainingen geïmporteerd
             {result.skippedDuplicates > 0 && <> ({result.skippedDuplicates} duplicaten overgeslagen)</>}.
           </p>
+          {result.updated > 0 && (
+            <p className="mt-1 text-sm" style={{ color: 'var(--status-good)' }}>
+              {result.updated} eerder geïmporteerde trainingen aangevuld met sessieduur.
+            </p>
+          )}
           {result.bodyWeightAdded > 0 && (
             <p className="mt-1 text-sm" style={{ color: 'var(--status-good)' }}>
               {result.bodyWeightAdded} lichaamsgewicht-metingen verwerkt.

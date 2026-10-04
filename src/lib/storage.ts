@@ -58,29 +58,43 @@ function dedupeKey(entry: Pick<LogEntry, 'exerciseId' | 'date' | 'sets'>): strin
 }
 
 /**
- * Voegt meerdere logs in één keer toe (bijv. bij een import), en slaat exacte
- * duplicaten van al bestaande logs over. Retourneert hoeveel er zijn
- * toegevoegd en hoeveel er zijn overgeslagen als duplicaat.
+ * Voegt meerdere logs in één keer toe (bijv. bij een import). Exacte duplicaten van al
+ * bestaande logs worden overgeslagen, behalve dat een duplicaat die een sessieduur
+ * aanlevert die de bestaande log nog mist, die duur alsnog bijwerkt (backfill) — zodat
+ * opnieuw importeren van dezelfde CSV, nu met "Einde training" gekoppeld, de duur ook
+ * met terugwerkende kracht aan eerder geïmporteerde trainingen toevoegt.
  */
-export function bulkAddLogs(entries: Omit<LogEntry, 'id'>[]): { added: number; skippedDuplicates: number } {
+export function bulkAddLogs(entries: Omit<LogEntry, 'id'>[]): {
+  added: number
+  skippedDuplicates: number
+  updated: number
+} {
   const logs = readRaw()
-  const existingKeys = new Set(logs.map(dedupeKey))
+  const indexByKey = new Map(logs.map((l, i) => [dedupeKey(l), i]))
   let added = 0
   let skippedDuplicates = 0
+  let updated = 0
 
   for (const entry of entries) {
     const key = dedupeKey(entry)
-    if (existingKeys.has(key)) {
-      skippedDuplicates++
+    const existingIndex = indexByKey.get(key)
+    if (existingIndex !== undefined) {
+      const existing = logs[existingIndex]
+      if (!existing.durationMinutes && entry.durationMinutes) {
+        logs[existingIndex] = { ...existing, durationMinutes: entry.durationMinutes }
+        updated++
+      } else {
+        skippedDuplicates++
+      }
       continue
     }
-    existingKeys.add(key)
+    indexByKey.set(key, logs.length)
     logs.push({ ...entry, id: crypto.randomUUID() })
     added++
   }
 
   writeRaw(logs)
-  return { added, skippedDuplicates }
+  return { added, skippedDuplicates, updated }
 }
 
 export function deleteLog(id: string) {
@@ -185,7 +199,7 @@ export function daysSinceLastBackup(now: Date = new Date()): number | null {
  * zodat eerder gedownloade back-ups ook nu nog werken.
  */
 export function importBackupJson(json: string): {
-  logs: { added: number; skippedDuplicates: number }
+  logs: { added: number; skippedDuplicates: number; updated: number }
   bodyWeight: { added: number; updated: number }
 } {
   const parsed = JSON.parse(json)
