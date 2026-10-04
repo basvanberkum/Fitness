@@ -44,14 +44,32 @@ const NUMBER_WORD_MAP = buildNumberWordMap(300)
 // eerst matcht op het losse woord "tien" binnenin.
 const SORTED_WORDS = [...NUMBER_WORD_MAP.keys()].sort((a, b) => b.length - a.length)
 
+// Samengestelde gym-termen die mensen soms los, soms aan elkaar schrijven
+// ("push down" vs "pushdown"). Zonder deze normalisatie kan een alias met de
+// ene spatiëring niet matchen op dezelfde term met de andere spatiëring.
+const COMPOUND_WORD_FIXES: [RegExp, string][] = [
+  [/\bpush\s*downs?\b/g, 'pushdown'],
+  [/\bpull\s*downs?\b/g, 'pulldown'],
+  [/\bpush\s*ups?\b/g, 'pushup'],
+  [/\bpull\s*ups?\b/g, 'pullup'],
+  [/\bchin\s*ups?\b/g, 'chinup'],
+  [/\bsit\s*ups?\b/g, 'situp'],
+]
+
 export function normalizeDutchText(input: string): string {
-  return input
+  let text = input
     .toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '') // diakritische tekens weg (ë -> e)
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+
+  for (const [pattern, replacement] of COMPOUND_WORD_FIXES) {
+    text = text.replace(pattern, replacement)
+  }
+
+  return text
 }
 
 /**

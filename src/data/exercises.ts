@@ -255,7 +255,13 @@ export const EXERCISES: Exercise[] = [
     name: 'Home Pull Down',
     category: 'pull',
     muscles: { back: 1, biceps: 0.4 },
-    aliases: ['home overhand pulldown', 'home pull down'],
+    aliases: [
+      'home overhand pulldown',
+      'home pull down',
+      'home standing lat pushdown',
+      'home single cable pull down',
+      'home single seated cable pull down',
+    ],
   },
   {
     id: 'barbell-row',
