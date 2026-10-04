@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { computeMuscleContributions, type MuscleScore } from '../lib/scoring'
-import { STATUS_META, statusColorForScore } from '../lib/statusMeta'
+import { STATUS_META } from '../lib/statusMeta'
 import type { LogEntry } from '../lib/storage'
 import { ProgressBar } from './ProgressBar'
 
@@ -47,7 +47,7 @@ export function MuscleScoreCard({ score, logs, now }: { score: MuscleScore; logs
         <ProgressBar
           value={score.weeklySets}
           max={barMax}
-          color={statusColorForScore(score.weeklyScore)}
+          color={meta.color}
           markerAt={score.target.min}
         />
       </div>

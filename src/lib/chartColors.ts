@@ -50,8 +50,13 @@ export function getChartPalette(isDark: boolean): ChartPalette {
   return isDark ? DARK : LIGHT
 }
 
-export function statusColorFromPalette(palette: ChartPalette, score: number): string {
-  if (score >= 100) return palette.statusGood
-  if (score >= 50) return palette.statusWarning
+/**
+ * Kleur op basis van de echte low/good/high-status (t.o.v. min/max-richtwaarde), niet op
+ * basis van het numerieke scoregetal — dat loopt immers continu op tot 100 bij de max, dus
+ * "binnen doel" (good) zit vaak onder 100 en zou anders ten onrechte als "warning" kleuren.
+ */
+export function statusColorForMuscleStatus(palette: ChartPalette, status: 'low' | 'good' | 'high'): string {
+  if (status === 'good') return palette.statusGood
+  if (status === 'high') return palette.statusSerious
   return palette.statusCritical
 }

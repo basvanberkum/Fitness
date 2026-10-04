@@ -7,7 +7,7 @@ import {
   type AggregateMetric,
   type Granularity,
 } from '../lib/chartData'
-import { getChartPalette, statusColorFromPalette } from '../lib/chartColors'
+import { getChartPalette, statusColorForMuscleStatus } from '../lib/chartColors'
 import { findExercise } from '../lib/exerciseCatalog'
 import { computeMuscleWeeklyAverage } from '../lib/scoring'
 import { useAllExercises } from '../lib/useAllExercises'
@@ -329,7 +329,7 @@ export function Stats({ logs, bodyWeightEntries }: { logs: LogEntry[]; bodyWeigh
               />
               <Bar dataKey="averagePerWeek" radius={[0, 4, 4, 0]}>
                 {muscleAverages.map((m) => (
-                  <Cell key={m.muscle} fill={statusColorFromPalette(palette, m.score)} />
+                  <Cell key={m.muscle} fill={statusColorForMuscleStatus(palette, m.status)} />
                 ))}
                 <LabelList
                   dataKey="averagePerWeek"
