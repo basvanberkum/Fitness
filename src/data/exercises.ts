@@ -160,7 +160,15 @@ export const EXERCISES: Exercise[] = [
     name: 'Lateral Raises',
     category: 'push',
     muscles: { shoulders: 1 },
-    aliases: ['lateral raise', 'zijheffen', 'zij heffen', 'front rear raise'],
+    aliases: [
+      'lateral raise',
+      'side lateral raise',
+      'side lateral raises',
+      'dumbbell lateral raise',
+      'zijheffen',
+      'zij heffen',
+      'front rear raise',
+    ],
   },
   {
     id: 'front-raise',

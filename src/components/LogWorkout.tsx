@@ -140,10 +140,19 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
           >
             {isListening ? '■' : '●'}
           </button>
-          <div className="min-h-[2.5rem] flex-1 rounded-lg px-3 py-2 text-sm" style={{ background: 'var(--surface-page)', color: 'var(--text-primary)' }}>
-            {transcript || <span style={{ color: 'var(--text-muted)' }}>{isListening ? 'Ik luister...' : 'Tik op de knop en spreek je oefening in'}</span>}
-          </div>
+          <input
+            type="text"
+            value={transcript}
+            onChange={(e) => setTranscript(e.target.value)}
+            placeholder={isListening ? 'Ik luister...' : 'Tik op de knop en spreek je oefening in, of typ hier'}
+            className="min-h-[2.5rem] flex-1 rounded-lg px-3 py-2 text-sm"
+            style={{ background: 'var(--surface-page)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+          />
         </div>
+        <p className="mt-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+          Herkent spraakherkenning een woord verkeerd (bijv. een Engelse oefeningnaam)? Je kunt de tekst hierboven
+          altijd corrigeren vóór je op "Opnieuw interpreteren" tikt.
+        </p>
 
         {!speechSupported && (
           <p className="mt-2 text-xs" style={{ color: 'var(--status-warning)' }}>

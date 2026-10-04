@@ -1,6 +1,6 @@
 import type { Exercise } from '../data/exercises'
-import { convertDutchNumberWordsToDigits, normalizeDutchText } from './dutchNumbers'
-import { getAllExercises } from './exerciseCatalog'
+import { convertDutchNumberWordsToDigits } from './dutchNumbers'
+import { matchExerciseByFreeText } from './importMapping'
 
 export interface ParsedWorkout {
   exercise: Exercise | null
@@ -10,22 +10,6 @@ export interface ParsedWorkout {
   bodyweight: boolean
   /** De tekst na normalisatie/telwoord-conversie, handig om te tonen ter controle */
   processedText: string
-}
-
-function matchExercise(normalizedText: string): Exercise | null {
-  let best: { exercise: Exercise; aliasLength: number } | null = null
-  for (const exercise of getAllExercises()) {
-    for (const alias of exercise.aliases) {
-      const normalizedAlias = normalizeDutchText(alias)
-      if (normalizedAlias.length === 0) continue
-      if (normalizedText.includes(normalizedAlias)) {
-        if (!best || normalizedAlias.length > best.aliasLength) {
-          best = { exercise, aliasLength: normalizedAlias.length }
-        }
-      }
-    }
-  }
-  return best?.exercise ?? null
 }
 
 function firstMatchNumber(text: string, patterns: RegExp[]): number | null {
@@ -49,7 +33,7 @@ function firstMatchNumber(text: string, patterns: RegExp[]): number | null {
 export function parseWorkoutText(rawText: string): ParsedWorkout {
   const withDigits = convertDutchNumberWordsToDigits(rawText)
 
-  const exercise = matchExercise(withDigits)
+  const exercise = matchExerciseByFreeText(withDigits)
 
   const bodyweight = /eigen\s?gewicht|lichaamsgewicht|bodyweight/.test(withDigits)
 
