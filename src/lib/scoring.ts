@@ -72,14 +72,16 @@ function weightedVolumeByMuscle(
   return totals
 }
 
+/**
+ * Score loopt lineair en continu op van 0 (geen sets) naar 100 (op of boven de
+ * max-richtwaarde), zodat het enkel aanraken van de min niet al de volle 100
+ * oplevert — alleen de max geeft het volledige puntenaantal. De status
+ * (low/good/high) blijft wel gewoon bepaald door min/max, voor de kleurcodering.
+ */
 function scoreFor(sets: number, target: MuscleTarget): { score: number; status: MuscleStatus } {
-  if (sets < target.min) {
-    return { score: Math.round((sets / target.min) * 100), status: 'low' }
-  }
-  if (sets <= target.max) {
-    return { score: 100, status: 'good' }
-  }
-  return { score: 100, status: 'high' }
+  const status: MuscleStatus = sets < target.min ? 'low' : sets <= target.max ? 'good' : 'high'
+  const score = target.max > 0 ? Math.min(100, Math.round((sets / target.max) * 100)) : 100
+  return { score, status }
 }
 
 export function computeMuscleScores(logs: LogEntry[], now: Date = new Date()): MuscleScore[] {
