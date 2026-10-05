@@ -1,4 +1,4 @@
-# Fitness Tracker
+# Bas Fitness Tracker
 
 Een responsive web-app om je krachttraining bij te houden: push/pull/legs/core-oefeningen loggen (ook via spraak), statistieken bekijken, en per spiergroep zien of je op schema zit.
 

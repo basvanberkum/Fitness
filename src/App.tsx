@@ -25,7 +25,7 @@ export default function App() {
         }}
       >
         <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Fitness Tracker
+          Bas Fitness Tracker
         </h1>
       </header>
 

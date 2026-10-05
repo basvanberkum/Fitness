@@ -1,6 +1,6 @@
 {
-  "name": "Fitness Tracker",
-  "short_name": "Fitness",
+  "name": "Bas Fitness Tracker",
+  "short_name": "Bas Fitness",
   "description": "Houd je krachttraining bij: loggen, statistieken en score per spiergroep.",
   "start_url": ".",
   "scope": ".",
