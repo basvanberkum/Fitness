@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CATEGORY_LABELS, type ExerciseCategory } from '../data/exercises'
 import { findExercise } from '../lib/exerciseCatalog'
-import { addLog, deleteLog, getRecentWorkoutNames, type LogEntry, type SetEntry } from '../lib/storage'
+import { addLog, deleteLog, getRecentWorkoutNames, updateLog, type LogEntry, type SetEntry } from '../lib/storage'
+import { summarizeSets } from '../lib/setSummary'
 import { useAllExercises } from '../lib/useAllExercises'
 import {
   isSpeechRecognitionSupported,
@@ -36,6 +37,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
   const [setRows, setSetRows] = useState<SetEntry[]>([emptySetRow()])
   const [bodyweight, setBodyweight] = useState(false)
   const [workoutName, setWorkoutName] = useState('')
+  const [editingLogId, setEditingLogId] = useState<string | null>(null)
 
   const handleRef = useRef<VoiceListenHandle | null>(null)
   const speechSupported = useMemo(() => isSpeechRecognitionSupported(), [])
@@ -95,22 +97,52 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
   }
 
   function handleSave() {
-    const entry: Omit<LogEntry, 'id'> = {
-      exerciseId,
-      date: new Date().toISOString(),
-      sets: setRows.map((r) => ({
-        reps: Math.max(0, r.reps),
-        weight: bodyweight ? 0 : Math.max(0, r.weight),
-        note: r.note?.trim() || undefined,
-      })),
-      workoutName: workoutName.trim() || undefined,
-      rawInput: transcript.trim() || undefined,
-      source,
+    const sets = setRows.map((r) => ({
+      reps: Math.max(0, r.reps),
+      weight: bodyweight ? 0 : Math.max(0, r.weight),
+      note: r.note?.trim() || undefined,
+    }))
+
+    if (editingLogId) {
+      updateLog(editingLogId, {
+        exerciseId,
+        sets,
+        workoutName: workoutName.trim() || undefined,
+      })
+      setEditingLogId(null)
+    } else {
+      const entry: Omit<LogEntry, 'id'> = {
+        exerciseId,
+        date: new Date().toISOString(),
+        sets,
+        workoutName: workoutName.trim() || undefined,
+        rawInput: transcript.trim() || undefined,
+        source,
+      }
+      addLog(entry)
     }
-    addLog(entry)
+
     setTranscript('')
     setSetRows([emptySetRow()])
     setSource('manual')
+  }
+
+  function startEditing(log: LogEntry) {
+    setEditingLogId(log.id)
+    setExerciseId(log.exerciseId)
+    setWorkoutName(log.workoutName ?? '')
+    setBodyweight(log.sets.length > 0 && log.sets.every((s) => s.weight === 0))
+    setSetRows(log.sets.map((s) => ({ ...s })))
+    setTranscript('')
+    setSource('manual')
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function cancelEditing() {
+    setEditingLogId(null)
+    setSetRows([emptySetRow()])
+    setWorkoutName('')
+    setBodyweight(false)
   }
 
   const recentLogs = logs.slice(0, 8)
@@ -185,6 +217,15 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
         <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
           Controleer &amp; opslaan
         </h2>
+
+        {editingLogId && (
+          <p className="mt-2 rounded-lg px-3 py-2 text-xs" style={{ background: 'var(--surface-page)', color: 'var(--text-secondary)' }}>
+            Je bewerkt een eerder gelogde training.{' '}
+            <button type="button" onClick={cancelEditing} className="underline" style={{ color: 'var(--series-push)' }}>
+              Annuleren
+            </button>
+          </p>
+        )}
 
         <label className="mt-3 block text-sm" style={{ color: 'var(--text-secondary)' }}>
           Workout naam (optioneel)
@@ -302,7 +343,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
           className="mt-4 w-full rounded-lg py-2.5 text-sm font-medium text-white"
           style={{ background: 'var(--series-push)' }}
         >
-          Opslaan
+          {editingLogId ? 'Wijzigingen opslaan' : 'Opslaan'}
         </button>
       </section>
 
@@ -334,19 +375,27 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
                     )}
                   </p>
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {formatDateTime(log.date)} · {log.sets.length} sets × {log.sets[0]?.reps ?? 0} reps
-                    {log.sets[0]?.weight ? ` × ${log.sets[0].weight}kg` : ' (eigen gewicht)'}
+                    {formatDateTime(log.date)} · {summarizeSets(log.sets)}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => deleteLog(log.id)}
-                  className="text-xs"
-                  style={{ color: 'var(--status-critical)' }}
-                  aria-label="Verwijderen"
-                >
-                  Verwijderen
-                </button>
+                <div className="flex shrink-0 flex-col items-end gap-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => startEditing(log)}
+                    style={{ color: 'var(--series-push)' }}
+                    aria-label="Bewerken"
+                  >
+                    Bewerken
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteLog(log.id)}
+                    style={{ color: 'var(--status-critical)' }}
+                    aria-label="Verwijderen"
+                  >
+                    Verwijderen
+                  </button>
+                </div>
               </div>
             )
           })}
