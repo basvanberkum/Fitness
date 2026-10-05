@@ -240,8 +240,10 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
                   Reps
                   <input
                     type="number"
+                    inputMode="numeric"
                     min={0}
                     value={row.reps}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => updateSetRow(i, { reps: Number(e.target.value) })}
                     className="mt-1 w-full rounded-lg px-2 py-1.5 text-sm"
                     style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
@@ -251,10 +253,12 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
                   Kg
                   <input
                     type="number"
+                    inputMode="decimal"
                     min={0}
                     step={0.5}
                     value={row.weight}
                     disabled={bodyweight}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => updateSetRow(i, { weight: Number(e.target.value) })}
                     className="mt-1 w-full rounded-lg px-2 py-1.5 text-sm disabled:opacity-40"
                     style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
