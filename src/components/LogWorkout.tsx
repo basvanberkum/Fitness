@@ -22,8 +22,51 @@ function formatDateTime(iso: string): string {
   })
 }
 
-function emptySetRow(reps = 10, weight = 20): SetEntry {
+/** Invoerrijen houden reps/gewicht als TEKST bij (i.p.v. als getal), zodat een veld
+ * tijdens het typen gewoon leeg kan zijn — bij een direct aan een getal gekoppeld
+ * invoerveld springt de waarde anders steeds terug naar "0" zodra je hem leegmaakt,
+ * waarna nieuwe cijfers daar lastig achter/voor blijven plakken i.p.v. hem te vervangen. */
+interface DraftSetRow {
+  reps: string
+  weight: string
+  note?: string
+}
+
+interface PendingExercise {
+  key: string
+  exerciseId: string
+  sets: SetEntry[]
+  date: string
+  rawInput?: string
+  source: 'voice' | 'manual'
+}
+
+function emptyDraftRow(reps = '10', weight = '20'): DraftSetRow {
   return { reps, weight }
+}
+
+function sanitizeDigits(value: string): string {
+  return value.replace(/[^0-9]/g, '')
+}
+
+/** Staat cijfers en één decimaalteken toe (punt of komma, genormaliseerd naar punt). */
+function sanitizeDecimal(value: string): string {
+  const normalized = value.replace(',', '.').replace(/[^0-9.]/g, '')
+  const firstDot = normalized.indexOf('.')
+  if (firstDot === -1) return normalized
+  return normalized.slice(0, firstDot + 1) + normalized.slice(firstDot + 1).replace(/\./g, '')
+}
+
+function draftRowsToSets(rows: DraftSetRow[], isBodyweight: boolean): SetEntry[] {
+  return rows.map((r) => ({
+    reps: Math.max(0, Math.round(Number(r.reps) || 0)),
+    weight: isBodyweight ? 0 : Math.max(0, Number(r.weight) || 0),
+    note: r.note?.trim() || undefined,
+  }))
+}
+
+function setsToDraftRows(sets: SetEntry[]): DraftSetRow[] {
+  return sets.length > 0 ? sets.map((s) => ({ reps: String(s.reps), weight: String(s.weight), note: s.note })) : [emptyDraftRow()]
 }
 
 export function LogWorkout({ logs }: { logs: LogEntry[] }) {
@@ -34,10 +77,11 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
   const [source, setSource] = useState<'voice' | 'manual'>('manual')
 
   const [exerciseId, setExerciseId] = useState(allExercises[0]?.id ?? '')
-  const [setRows, setSetRows] = useState<SetEntry[]>([emptySetRow()])
+  const [setRows, setSetRows] = useState<DraftSetRow[]>([emptyDraftRow()])
   const [bodyweight, setBodyweight] = useState(false)
   const [workoutName, setWorkoutName] = useState('')
   const [editingLogId, setEditingLogId] = useState<string | null>(null)
+  const [pendingExercises, setPendingExercises] = useState<PendingExercise[]>([])
 
   const handleRef = useRef<VoiceListenHandle | null>(null)
   const speechSupported = useMemo(() => isSpeechRecognitionSupported(), [])
@@ -52,11 +96,11 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
     const parsed = parseWorkoutText(text)
     if (parsed.exercise) setExerciseId(parsed.exercise.id)
     const count = parsed.sets ?? setRows.length
-    const reps = parsed.reps ?? setRows[0]?.reps ?? 10
+    const reps = parsed.reps ?? (Number(setRows[0]?.reps) || 10)
     const isBodyweight = parsed.bodyweight
-    const weight = isBodyweight ? 0 : (parsed.weight ?? setRows[0]?.weight ?? 20)
+    const weight = isBodyweight ? 0 : (parsed.weight ?? (Number(setRows[0]?.weight) || 20))
     setBodyweight(isBodyweight)
-    setSetRows(Array.from({ length: Math.max(1, count) }, () => emptySetRow(reps, weight)))
+    setSetRows(Array.from({ length: Math.max(1, count) }, () => emptyDraftRow(String(reps), String(weight))))
   }
 
   function toggleListening() {
@@ -81,14 +125,14 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
     })
   }
 
-  function updateSetRow(index: number, updates: Partial<SetEntry>) {
+  function updateSetRow(index: number, updates: Partial<DraftSetRow>) {
     setSetRows((rows) => rows.map((r, i) => (i === index ? { ...r, ...updates } : r)))
   }
 
   function addSetRow() {
     setSetRows((rows) => {
       const last = rows[rows.length - 1]
-      return [...rows, last ? { ...last, note: undefined } : emptySetRow()]
+      return [...rows, last ? { ...last, note: undefined } : emptyDraftRow()]
     })
   }
 
@@ -96,43 +140,86 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
     setSetRows((rows) => (rows.length <= 1 ? rows : rows.filter((_, i) => i !== index)))
   }
 
-  function handleSave() {
-    const sets = setRows.map((r) => ({
-      reps: Math.max(0, r.reps),
-      weight: bodyweight ? 0 : Math.max(0, r.weight),
-      note: r.note?.trim() || undefined,
-    }))
-
-    if (editingLogId) {
-      updateLog(editingLogId, {
-        exerciseId,
-        sets,
-        workoutName: workoutName.trim() || undefined,
-      })
-      setEditingLogId(null)
-    } else {
-      const entry: Omit<LogEntry, 'id'> = {
-        exerciseId,
-        date: new Date().toISOString(),
-        sets,
-        workoutName: workoutName.trim() || undefined,
-        rawInput: transcript.trim() || undefined,
-        source,
-      }
-      addLog(entry)
-    }
-
+  function resetExerciseForm(rows: DraftSetRow[] = [emptyDraftRow()]) {
+    setExerciseId(allExercises[0]?.id ?? '')
+    setSetRows(rows)
+    setBodyweight(false)
     setTranscript('')
-    setSetRows([emptySetRow()])
     setSource('manual')
   }
 
+  /** Slaat de huidige oefening alvast op (direct in opslag, niets blijft "zwevend"), en
+   * maakt het formulier leeg voor de volgende oefening binnen dezelfde workout. */
+  function addExerciseToWorkout() {
+    setPendingExercises((list) => [
+      ...list,
+      {
+        key: crypto.randomUUID(),
+        exerciseId,
+        sets: draftRowsToSets(setRows, bodyweight),
+        date: new Date().toISOString(),
+        rawInput: transcript.trim() || undefined,
+        source,
+      },
+    ])
+    resetExerciseForm([emptyDraftRow('', '')])
+  }
+
+  function removePendingExercise(key: string) {
+    setPendingExercises((list) => list.filter((p) => p.key !== key))
+  }
+
+  function handleSave() {
+    if (editingLogId) {
+      updateLog(editingLogId, {
+        exerciseId,
+        sets: draftRowsToSets(setRows, bodyweight),
+        workoutName: workoutName.trim() || undefined,
+      })
+      setEditingLogId(null)
+      resetExerciseForm()
+      setWorkoutName('')
+      return
+    }
+
+    const trimmedWorkoutName = workoutName.trim() || undefined
+    for (const item of pendingExercises) {
+      addLog({
+        exerciseId: item.exerciseId,
+        date: item.date,
+        sets: item.sets,
+        workoutName: trimmedWorkoutName,
+        rawInput: item.rawInput,
+        source: item.source,
+      })
+    }
+
+    // De oefening die nu in het formulier staat alleen meenemen als er echt iets is
+    // ingevuld — anders zou een lege/ongebruikte laatste rij ook worden opgeslagen.
+    const currentSets = draftRowsToSets(setRows, bodyweight)
+    if (currentSets.some((s) => s.reps > 0)) {
+      addLog({
+        exerciseId,
+        date: new Date().toISOString(),
+        sets: currentSets,
+        workoutName: trimmedWorkoutName,
+        rawInput: transcript.trim() || undefined,
+        source,
+      })
+    }
+
+    setPendingExercises([])
+    resetExerciseForm()
+    setWorkoutName('')
+  }
+
   function startEditing(log: LogEntry) {
+    setPendingExercises([])
     setEditingLogId(log.id)
     setExerciseId(log.exerciseId)
     setWorkoutName(log.workoutName ?? '')
     setBodyweight(log.sets.length > 0 && log.sets.every((s) => s.weight === 0))
-    setSetRows(log.sets.map((s) => ({ ...s })))
+    setSetRows(setsToDraftRows(log.sets))
     setTranscript('')
     setSource('manual')
     document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' })
@@ -140,12 +227,12 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
 
   function cancelEditing() {
     setEditingLogId(null)
-    setSetRows([emptySetRow()])
+    resetExerciseForm()
     setWorkoutName('')
-    setBodyweight(false)
   }
 
   const recentLogs = logs.slice(0, 8)
+  const hasPending = pendingExercises.length > 0
 
   return (
     <div className="flex flex-col gap-6 px-4 py-5">
@@ -209,6 +296,45 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
           </button>
         </div>
       </section>
+
+      {hasPending && (
+        <section
+          className="rounded-2xl p-5"
+          style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
+        >
+          <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Deze workout tot nu toe
+          </h2>
+          <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            Deze oefeningen zijn al opgeslagen. Vul hieronder de volgende oefening in, of sla de workout af.
+          </p>
+          <div className="mt-3 flex flex-col gap-2">
+            {pendingExercises.map((p) => {
+              const exercise = findExercise(p.exerciseId)
+              return (
+                <div
+                  key={p.key}
+                  className="flex items-center justify-between rounded-lg px-3 py-2 text-sm"
+                  style={{ background: 'var(--surface-page)' }}
+                >
+                  <span style={{ color: 'var(--text-primary)' }}>
+                    {exercise?.name ?? p.exerciseId}{' '}
+                    <span style={{ color: 'var(--text-muted)' }}>· {summarizeSets(p.sets)}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removePendingExercise(p.key)}
+                    className="shrink-0 text-xs"
+                    style={{ color: 'var(--status-critical)' }}
+                  >
+                    Verwijderen
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       <section
         className="rounded-2xl p-5"
@@ -280,12 +406,13 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
                 <label className="flex-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
                   Reps
                   <input
-                    type="number"
+                    type="text"
                     inputMode="numeric"
-                    min={0}
+                    pattern="[0-9]*"
                     value={row.reps}
                     onFocus={(e) => e.target.select()}
-                    onChange={(e) => updateSetRow(i, { reps: Number(e.target.value) })}
+                    onClick={(e) => e.currentTarget.select()}
+                    onChange={(e) => updateSetRow(i, { reps: sanitizeDigits(e.target.value) })}
                     className="mt-1 w-full rounded-lg px-2 py-1.5 text-sm"
                     style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
                   />
@@ -293,14 +420,13 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
                 <label className="flex-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
                   Kg
                   <input
-                    type="number"
+                    type="text"
                     inputMode="decimal"
-                    min={0}
-                    step={0.5}
                     value={row.weight}
                     disabled={bodyweight}
                     onFocus={(e) => e.target.select()}
-                    onChange={(e) => updateSetRow(i, { weight: Number(e.target.value) })}
+                    onClick={(e) => e.currentTarget.select()}
+                    onChange={(e) => updateSetRow(i, { weight: sanitizeDecimal(e.target.value) })}
                     className="mt-1 w-full rounded-lg px-2 py-1.5 text-sm disabled:opacity-40"
                     style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
                   />
@@ -337,13 +463,24 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
           + Set toevoegen
         </button>
 
+        {!editingLogId && (
+          <button
+            type="button"
+            onClick={addExerciseToWorkout}
+            className="mt-3 w-full rounded-lg py-2 text-xs font-medium"
+            style={{ color: 'var(--series-push)', border: '1px dashed var(--border)' }}
+          >
+            + Nog een oefening in deze workout
+          </button>
+        )}
+
         <button
           type="button"
           onClick={handleSave}
-          className="mt-4 w-full rounded-lg py-2.5 text-sm font-medium text-white"
+          className="mt-3 w-full rounded-lg py-2.5 text-sm font-medium text-white"
           style={{ background: 'var(--series-push)' }}
         >
-          {editingLogId ? 'Wijzigingen opslaan' : 'Opslaan'}
+          {editingLogId ? 'Wijzigingen opslaan' : hasPending ? 'Workout opslaan' : 'Opslaan'}
         </button>
       </section>
 
