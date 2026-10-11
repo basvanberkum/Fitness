@@ -146,9 +146,9 @@ export function computeSessionQualityScore(session: DayGroup, allLogs: LogEntry[
     // intensiteit, volgens vaste drempels.
     const totalSets = session.totalSets
     if (totalSets < 6) tempo = 2 // onvoldoende
-    else if (totalSets <= 9) tempo = 4 // zwak
-    else if (totalSets <= 12) tempo = 6 // ok
-    else if (totalSets <= 15) tempo = 8 // goed
+    else if (totalSets < 9) tempo = 4 // zwak
+    else if (totalSets < 12) tempo = 6 // ok
+    else if (totalSets < 15) tempo = 8 // goed
     else tempo = 10 // uitstekend
     tempoBasis = 'unknown'
   }
