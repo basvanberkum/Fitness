@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { daysSinceLastBackup, type LogEntry } from '../lib/storage'
-import { computeMuscleScores, computeOverallScore, generateTips } from '../lib/scoring'
+import { computeMuscleScores, computeOverallLast30dScore, computeOverallScore, generateTips } from '../lib/scoring'
 import { statusColorForScore } from '../lib/statusMeta'
 import { MuscleScoreCard } from './MuscleScoreCard'
 
@@ -8,6 +8,7 @@ export function Dashboard({ logs, onGoToData }: { logs: LogEntry[]; onGoToData: 
   const now = useMemo(() => new Date(), [])
   const scores = useMemo(() => computeMuscleScores(logs, now), [logs, now])
   const overall = useMemo(() => computeOverallScore(scores), [scores])
+  const overallLast30d = useMemo(() => computeOverallLast30dScore(scores), [scores])
   const tips = useMemo(() => generateTips(logs, now), [logs, now])
   const backupAge = useMemo(() => daysSinceLastBackup(now), [now])
   const showBackupReminder = logs.length > 0 && (backupAge === null || backupAge > 30)
@@ -42,18 +43,30 @@ export function Dashboard({ logs, onGoToData }: { logs: LogEntry[]; onGoToData: 
       )}
 
       <section
-        className="rounded-2xl p-6 text-center"
+        className="rounded-2xl p-6"
         style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
       >
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Weekscore (alle spiergroepen)
-        </p>
-        <p className="mt-1 text-5xl font-semibold" style={{ color: statusColorForScore(overall) }}>
-          {overall}
-        </p>
-        <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-          Gebaseerd op sets per spiergroep t.o.v. een algemene richtwaarde van 10-20 sets/week
-          (bijstelbaar startpunt, geen medisch advies)
+        <div className="grid grid-cols-2 gap-4 text-center">
+          <div>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Weekscore
+            </p>
+            <p className="mt-1 text-5xl font-semibold" style={{ color: statusColorForScore(overall) }}>
+              {overall}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Gem. laatste 30d
+            </p>
+            <p className="mt-1 text-5xl font-semibold" style={{ color: statusColorForScore(overallLast30d) }}>
+              {overallLast30d}
+            </p>
+          </div>
+        </div>
+        <p className="mt-3 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+          Gebaseerd op sets per spiergroep (alle spiergroepen samen) t.o.v. een algemene richtwaarde van 10-20
+          sets/week (bijstelbaar startpunt, geen medisch advies)
         </p>
       </section>
 

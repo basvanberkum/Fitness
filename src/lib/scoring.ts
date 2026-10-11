@@ -159,6 +159,13 @@ export function computeOverallScore(scores: MuscleScore[]): number {
   return Math.round(sum / scores.length)
 }
 
+/** Zelfde als computeOverallScore, maar op basis van het 30-dagen gemiddelde per spiergroep. */
+export function computeOverallLast30dScore(scores: MuscleScore[]): number {
+  if (scores.length === 0) return 0
+  const sum = scores.reduce((acc, s) => acc + s.last30dScore, 0)
+  return Math.round(sum / scores.length)
+}
+
 export interface MuscleContribution {
   exerciseId: string
   exerciseName: string

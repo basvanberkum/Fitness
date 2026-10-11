@@ -69,6 +69,19 @@ function setsToDraftRows(sets: SetEntry[]): DraftSetRow[] {
   return sets.length > 0 ? sets.map((s) => ({ reps: String(s.reps), weight: String(s.weight), note: s.note })) : [emptyDraftRow()]
 }
 
+/** Lokale tijd geformatteerd voor een `<input type="datetime-local">`. */
+function toDateTimeLocalValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+/** `<input type="datetime-local">` geeft lokale tijd zonder tijdzone-aanduiding, wat
+ * `new Date(...)` ook als lokale tijd parseert (i.p.v. als UTC, zoals bij een kale datum). */
+function fromDateTimeLocalValue(value: string): Date {
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed
+}
+
 export function LogWorkout({ logs }: { logs: LogEntry[] }) {
   const allExercises = useAllExercises()
   const [transcript, setTranscript] = useState('')
@@ -80,6 +93,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
   const [setRows, setSetRows] = useState<DraftSetRow[]>([emptyDraftRow()])
   const [bodyweight, setBodyweight] = useState(false)
   const [workoutName, setWorkoutName] = useState('')
+  const [logDate, setLogDate] = useState(() => toDateTimeLocalValue(new Date()))
   const [editingLogId, setEditingLogId] = useState<string | null>(null)
   const [pendingExercises, setPendingExercises] = useState<PendingExercise[]>([])
 
@@ -157,7 +171,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
         key: crypto.randomUUID(),
         exerciseId,
         sets: draftRowsToSets(setRows, bodyweight),
-        date: new Date().toISOString(),
+        date: fromDateTimeLocalValue(logDate).toISOString(),
         rawInput: transcript.trim() || undefined,
         source,
       },
@@ -175,10 +189,12 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
         exerciseId,
         sets: draftRowsToSets(setRows, bodyweight),
         workoutName: workoutName.trim() || undefined,
+        date: fromDateTimeLocalValue(logDate).toISOString(),
       })
       setEditingLogId(null)
       resetExerciseForm()
       setWorkoutName('')
+      setLogDate(toDateTimeLocalValue(new Date()))
       return
     }
 
@@ -200,7 +216,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
     if (currentSets.some((s) => s.reps > 0)) {
       addLog({
         exerciseId,
-        date: new Date().toISOString(),
+        date: fromDateTimeLocalValue(logDate).toISOString(),
         sets: currentSets,
         workoutName: trimmedWorkoutName,
         rawInput: transcript.trim() || undefined,
@@ -211,6 +227,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
     setPendingExercises([])
     resetExerciseForm()
     setWorkoutName('')
+    setLogDate(toDateTimeLocalValue(new Date()))
   }
 
   function startEditing(log: LogEntry) {
@@ -220,6 +237,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
     setWorkoutName(log.workoutName ?? '')
     setBodyweight(log.sets.length > 0 && log.sets.every((s) => s.weight === 0))
     setSetRows(setsToDraftRows(log.sets))
+    setLogDate(toDateTimeLocalValue(new Date(log.date)))
     setTranscript('')
     setSource('manual')
     document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' })
@@ -229,6 +247,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
     setEditingLogId(null)
     resetExerciseForm()
     setWorkoutName('')
+    setLogDate(toDateTimeLocalValue(new Date()))
   }
 
   const recentLogs = logs.slice(0, 8)
@@ -370,6 +389,23 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
             ))}
           </datalist>
         </label>
+
+        <label className="mt-3 block text-sm" style={{ color: 'var(--text-secondary)' }}>
+          Datum en tijd
+          <input
+            type="datetime-local"
+            value={logDate}
+            onChange={(e) => setLogDate(e.target.value)}
+            max={toDateTimeLocalValue(new Date())}
+            className="mt-1 w-full rounded-lg px-3 py-2 text-sm"
+            style={{ background: 'var(--surface-page)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+          />
+        </label>
+        {!editingLogId && hasPending && (
+          <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+            Geldt voor de volgende oefening die je aan deze workout toevoegt.
+          </p>
+        )}
 
         <label className="mt-3 block text-sm" style={{ color: 'var(--text-secondary)' }}>
           Oefening
