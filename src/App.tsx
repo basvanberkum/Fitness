@@ -30,8 +30,12 @@ export default function App() {
       </header>
 
       <main className="min-h-0 flex-1 overflow-y-auto">
+        {/* Altijd gemonteerd (alleen verborgen, niet unmount) zodat een nog niet opgeslagen
+            workout-in-opbouw niet verloren gaat als je even naar een ander tabblad kijkt. */}
+        <div style={{ display: tab === 'log' ? 'contents' : 'none' }}>
+          <LogWorkout logs={logs} />
+        </div>
         {tab === 'dashboard' && <Dashboard logs={logs} onGoToData={() => setTab('data')} />}
-        {tab === 'log' && <LogWorkout logs={logs} />}
         {tab === 'history' && <HistoryLog logs={logs} />}
         {tab === 'stats' && <Stats logs={logs} bodyWeightEntries={bodyWeightEntries} />}
         {tab === 'exercises' && <ExerciseBrowser logs={logs} />}

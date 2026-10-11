@@ -299,7 +299,22 @@ export const EXERCISES: Exercise[] = [
     name: 'Cable Row',
     category: 'pull',
     muscles: { back: 1, biceps: 0.3 },
-    aliases: ['seated cable row', 'roeien kabel', 'kabel roeien', 'zittend roeien', 'cable row', 'single cable row', 'iso lateral row'],
+    aliases: ['seated cable row', 'roeien kabel', 'kabel roeien', 'zittend roeien', 'cable row', 'iso lateral row'],
+  },
+  {
+    id: 'single-arm-cable-row',
+    name: 'Single Arm Cable Row',
+    category: 'pull',
+    muscles: { back: 1, biceps: 0.3 },
+    aliases: [
+      'single arm cable row',
+      'single arm row',
+      'single cable row',
+      'single row',
+      'single double row',
+      'one arm cable row',
+      'unilateral cable row',
+    ],
   },
   {
     id: 'home-cable-row',
@@ -488,6 +503,13 @@ export const EXERCISES: Exercise[] = [
     aliases: ['box jumping', 'box jump'],
   },
   {
+    id: 'thrusters',
+    name: 'Thrusters',
+    category: 'legs',
+    muscles: { quads: 1, glutes: 0.4, shoulders: 0.4 },
+    aliases: ['thrusters', 'thruster', 'trusters'],
+  },
+  {
     id: 'leg-extension',
     name: 'Leg Extensions',
     category: 'legs',
@@ -574,6 +596,7 @@ export const EXERCISES: Exercise[] = [
       'renegade rows',
       'crab walking',
       'farmers walk',
+      'various abs',
     ],
   },
   {
