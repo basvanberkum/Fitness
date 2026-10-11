@@ -1,4 +1,4 @@
-import type { MuscleGroup } from '../data/exercises'
+import type { Exercise, MuscleGroup } from '../data/exercises'
 import { findExercise } from './exerciseCatalog'
 import type { DayGroup } from './history'
 import type { LogEntry } from './storage'
@@ -8,8 +8,9 @@ export interface SessionQualityScore {
   overall: number
   goalAlignment: number
   recovery: number
-  structure: number
-  structureBasis: 'duration' | 'variety'
+  tempo: number
+  tempoBasis: 'duration' | 'unknown'
+  exerciseChoice: number
   notes: string[]
 }
 
@@ -34,18 +35,45 @@ function aggregateMuscleSets(entries: LogEntry[]): Partial<Record<MuscleGroup, n
   return totals
 }
 
+/** Een oefening die minstens 2 spiergroepen aanspreekt met een stevig totaalgewicht —
+ * een grove, geen officiële definitie van "compound" (bijv. Bench Press, Barbell Row). */
+function isCompoundExercise(exercise: Exercise): boolean {
+  const weights = Object.values(exercise.muscles) as number[]
+  const weightSum = weights.reduce((sum, w) => sum + w, 0)
+  return weights.length >= 2 && weightSum >= 1.2
+}
+
+function primaryMuscleOf(exercise: Exercise): MuscleGroup | null {
+  let best: MuscleGroup | null = null
+  let bestWeight = -1
+  for (const [muscle, weight] of Object.entries(exercise.muscles) as [MuscleGroup, number][]) {
+    if (weight > bestWeight) {
+      bestWeight = weight
+      best = muscle
+    }
+  }
+  return best
+}
+
 /**
- * Schat hoe goed een trainingssessie scoort (0-10) op drie punten:
- * 1. Doelbijdrage: trainde je vooral spiergroepen die nog achterliepen op je eigen
- *    doel (gebaseerd op de 7 dagen vóór deze sessie), of vooral spiergroepen die al
- *    ruim op schema zaten?
- * 2. Herstel: zat er voor de getrainde spiergroepen minimaal ~48 uur tussen deze en
- *    de vorige keer dat je die spiergroep trainde? (Dit is een veelgebruikte
- *    vuistregel voor herstel, geen voor jou geverifieerd medisch gegeven.)
- * 3. Opbouw/tempo: alleen te berekenen op basis van sets-per-uur als de sessieduur
- *    bekend is (bijv. uit een CSV-import met start- én eindtijd); anders een grove
- *    inschatting op basis van hoeveel verschillende oefeningen en sets per oefening
- *    je deed.
+ * Schat hoe goed een trainingssessie scoort (0-10) op vier punten. Gewogen op basis van
+ * jouw eigen prioriteiten:
+ * 1. Doelbijdrage (30%): trainde je vooral spiergroepen die nog achterliepen op je eigen
+ *    doel (gebaseerd op de 7 dagen vóór deze sessie), of vooral spiergroepen die al ruim
+ *    op schema zaten?
+ * 2. Herstel (25%): zat er voor de getrainde spiergroepen minimaal ~48 uur tussen deze
+ *    en de vorige keer dat je die spiergroep trainde? (Veelgebruikte vuistregel, geen
+ *    voor jou geverifieerd medisch gegeven.)
+ * 3. Tempo/intensiteit (25%): sets per uur, alleen te berekenen als de sessieduur bekend
+ *    is (bijv. uit een CSV-import met start- én eindtijd). Zonder bekende duur blijft dit
+ *    bewust een onzekere, middelmatige score — niet standaard hoog, want dan zou de app
+ *    net doen alsof ze het tempo kent terwijl dat niet zo is.
+ * 4. Slimme oefeningkeuze (20%): zat er voor elke getrainde spiergroep minstens één
+ *    compound-oefening bij (i.p.v. alleen isolatie), en werd er niet veel tijd besteed
+ *    aan meerdere bijna-identieke oefeningen voor dezelfde spier? Dit is verreweg de
+ *    meest subjectieve van de vier — een pure isolatie-sessie is niet per se dom (bijv.
+ *    een gerichte armdag), dus die krijgt een neutrale score; vooral veel overlappende
+ *    oefeningen voor één spier trekt hem omlaag.
  *
  * Dit is een heuristische inschatting op basis van vuistregels, geen gevalideerd
  * trainingsadvies — gebruik het als richting, niet als absolute waarheid.
@@ -73,8 +101,8 @@ export function computeSessionQualityScore(session: DayGroup, allLogs: LogEntry[
       }, 0)
     const target = targets[muscle]
     let subScore: number
-    if (preSets >= target.max) subScore = 4
-    else if (preSets >= target.min) subScore = 7
+    if (preSets >= target.max) subScore = 2
+    else if (preSets >= target.min) subScore = 6
     else subScore = 10
     goalScoreSum += subScore * weight
   }
@@ -102,39 +130,80 @@ export function computeSessionQualityScore(session: DayGroup, allLogs: LogEntry[
   }
   const recovery = Math.round((recoveryScoreSum / totalWeight) * 10) / 10
 
-  // --- 3. Opbouw/tempo ---
+  // --- 3. Tempo/intensiteit ---
   const durations = session.entries.map((e) => e.durationMinutes).filter((d): d is number => !!d && d > 0)
-  let structure: number
-  let structureBasis: 'duration' | 'variety'
+  let tempo: number
+  let tempoBasis: 'duration' | 'unknown'
   if (durations.length > 0) {
     const duration = Math.max(...durations)
     const setsPerHour = session.totalSets / (duration / 60)
-    if (setsPerHour >= 10 && setsPerHour <= 20) structure = 10
-    else if (setsPerHour > 20) structure = Math.max(3, 10 - (setsPerHour - 20) * 0.3)
-    else structure = Math.max(3, 10 - (10 - setsPerHour) * 0.5)
-    structureBasis = 'duration'
+    if (setsPerHour >= 10 && setsPerHour <= 20) tempo = 10
+    else if (setsPerHour > 20) tempo = Math.max(3, 10 - (setsPerHour - 20) * 0.3)
+    else tempo = Math.max(3, 10 - (10 - setsPerHour) * 0.5)
+    tempoBasis = 'duration'
   } else {
+    // Sessieduur onbekend: een middelmatige, bewust niet-hoge score — de app "doet" hier
+    // niet alsof ze het tempo kent. Hooguit een lichte bijstelling op basis van een grove
+    // variatie-indicatie, met een plafond ruim onder wat een bevestigd goed tempo geeft.
     const distinctExercises = new Set(session.entries.map((e) => e.exerciseId)).size
     const avgSetsPerExercise = session.totalSets / Math.max(1, distinctExercises)
-    let varietyScore = 10
-    if (distinctExercises < 2) varietyScore -= 3
-    if (avgSetsPerExercise < 2 || avgSetsPerExercise > 6) varietyScore -= 3
-    structure = Math.max(0, Math.min(10, varietyScore))
-    structureBasis = 'variety'
+    tempo = distinctExercises >= 2 && avgSetsPerExercise >= 2 && avgSetsPerExercise <= 6 ? 6 : 4
+    tempoBasis = 'unknown'
   }
-  structure = Math.round(structure * 10) / 10
+  tempo = Math.round(tempo * 10) / 10
 
-  const overall = Math.round((goalAlignment * 0.4 + recovery * 0.35 + structure * 0.25) * 10) / 10
+  // --- 4. Slimme oefeningkeuze ---
+  let coveredWeight = 0
+  for (const muscle of muscles) {
+    const hasCompound = session.entries.some((e) => {
+      const ex = findExercise(e.exerciseId)
+      return !!ex && (ex.muscles[muscle] ?? 0) > 0 && isCompoundExercise(ex)
+    })
+    if (hasCompound) coveredWeight += sessionMuscleSets[muscle] ?? 0
+  }
+  const compoundCoverage = coveredWeight / totalWeight
+
+  const exercisesByPrimaryMuscle = new Map<MuscleGroup, Set<string>>()
+  for (const entry of session.entries) {
+    const exercise = findExercise(entry.exerciseId)
+    if (!exercise) continue
+    const primary = primaryMuscleOf(exercise)
+    if (!primary) continue
+    if (!exercisesByPrimaryMuscle.has(primary)) exercisesByPrimaryMuscle.set(primary, new Set())
+    exercisesByPrimaryMuscle.get(primary)?.add(exercise.id)
+  }
+  const maxDistinctForOneMuscle = Math.max(0, ...[...exercisesByPrimaryMuscle.values()].map((s) => s.size))
+  let redundancyPenalty = 0
+  if (maxDistinctForOneMuscle >= 4) redundancyPenalty = 4
+  else if (maxDistinctForOneMuscle === 3) redundancyPenalty = 2
+
+  // Baseline van 5 (neutraal — puur isolatiewerk is niet per se een slechte keuze),
+  // oplopend tot 10 bij volledige compound-dekking, verlaagd bij veel overlappende
+  // oefeningen voor dezelfde spier.
+  const exerciseChoice = Math.round(Math.max(0, Math.min(10, 5 + compoundCoverage * 5 - redundancyPenalty)) * 10) / 10
+
+  // Een gewogen gemiddelde alleen verdunt een zwakke dimensie zodra de andere drie goed
+  // zijn — vier onafhankelijke dimensies middelen al snel naar een hoog eindcijfer, ook
+  // als er één duidelijk uit de pas loopt. Daarom telt de zwakste dimensie extra mee: het
+  // eindcijfer kan nooit hoger zijn dan die zwakste score + 2.
+  const weightedAverage = goalAlignment * 0.3 + recovery * 0.25 + tempo * 0.25 + exerciseChoice * 0.2
+  const weakestDimension = Math.min(goalAlignment, recovery, tempo, exerciseChoice)
+  const overall = Math.round(Math.min(weightedAverage, weakestDimension + 2) * 10) / 10
 
   const notes: string[] = []
   if (goalAlignment >= 8) notes.push('Vooral spiergroepen getraind die nog achterliepen op je doel.')
-  else if (goalAlignment <= 5) notes.push('Vooral spiergroepen getraind die al ruim op schema zaten.')
+  else if (goalAlignment <= 4) notes.push('Vooral spiergroepen getraind die al ruim op schema of over je doel zaten.')
   if (recovery <= 5) notes.push('Minder dan ~48u rust sinds de vorige keer voor (een deel van) deze spiergroepen.')
-  if (structureBasis === 'variety') {
-    notes.push('Sessieduur onbekend — inschatting op basis van opbouw i.p.v. tempo (geen CSV-eindtijd geïmporteerd).')
+  if (tempoBasis === 'unknown') {
+    notes.push('Sessieduur onbekend — tempo is daarom een onzekere, neutrale schatting (geen CSV-eindtijd bekend).')
+  }
+  if (maxDistinctForOneMuscle >= 3) {
+    notes.push(`${maxDistinctForOneMuscle} verschillende oefeningen voor dezelfde hoofdspier — mogelijk wat overlappend.`)
+  } else if (compoundCoverage < 0.5 && muscles.length > 0) {
+    notes.push('Vooral isolatie-oefeningen, geen compound-oefening per getrainde spiergroep — niet per se slecht, wel minder tijdsefficiënt.')
   }
 
-  return { overall, goalAlignment, recovery, structure, structureBasis, notes }
+  return { overall, goalAlignment, recovery, tempo, tempoBasis, exerciseChoice, notes }
 }
 
 export function qualityScoreColor(overall: number): string {

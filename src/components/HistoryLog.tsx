@@ -55,7 +55,7 @@ function SessionQualityBadge({ group, logs }: { group: DayGroup; logs: LogEntry[
     <span
       className="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
       style={{ background: qualityScoreColor(score.overall), color: 'white' }}
-      title="Inschatting van trainingskwaliteit (doelbijdrage, herstel, opbouw) — geen gevalideerd advies"
+      title="Inschatting van trainingskwaliteit (doelbijdrage, herstel, tempo, oefeningkeuze) — geen gevalideerd advies"
     >
       {score.overall.toFixed(1)}
     </span>
@@ -70,12 +70,13 @@ function SessionQualityBreakdown({ group, logs }: { group: DayGroup; logs: LogEn
         Trainingskwaliteit: {score.overall.toFixed(1)} / 10
       </p>
       <ul className="flex flex-col gap-0.5" style={{ color: 'var(--text-secondary)' }}>
-        <li>Doelbijdrage: {score.goalAlignment.toFixed(1)} / 10</li>
-        <li>Herstel (~48u richtlijn): {score.recovery.toFixed(1)} / 10</li>
+        <li>Doelbijdrage (30%): {score.goalAlignment.toFixed(1)} / 10</li>
+        <li>Herstel (25%, ~48u richtlijn): {score.recovery.toFixed(1)} / 10</li>
         <li>
-          Opbouw/tempo: {score.structure.toFixed(1)} / 10
-          {score.structureBasis === 'variety' && ' (schatting o.b.v. variatie, geen sessieduur bekend)'}
+          Tempo/intensiteit (25%): {score.tempo.toFixed(1)} / 10
+          {score.tempoBasis === 'unknown' && ' (onzeker, geen sessieduur bekend)'}
         </li>
+        <li>Slimme oefeningkeuze (20%): {score.exerciseChoice.toFixed(1)} / 10</li>
       </ul>
       {score.notes.length > 0 && (
         <ul className="mt-1.5 flex flex-col gap-0.5 italic" style={{ color: 'var(--text-muted)' }}>
