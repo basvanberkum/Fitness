@@ -133,7 +133,7 @@ export function AddExerciseForm({ onCreated, onCancel }: { onCreated: () => void
           type="button"
           onClick={handleSubmit}
           className="flex-1 rounded-lg py-2 text-sm font-medium text-white"
-          style={{ background: 'var(--series-push)' }}
+          style={{ background: 'var(--accent)' }}
         >
           Toevoegen
         </button>

@@ -11,7 +11,6 @@ import { getChartPalette, statusColorForMuscleStatus } from '../lib/chartColors'
 import { findExercise } from '../lib/exerciseCatalog'
 import { computeMuscleWeeklyAverage } from '../lib/scoring'
 import { useAllExercises } from '../lib/useAllExercises'
-import { useDarkMode } from '../lib/useDarkMode'
 import type { BodyWeightEntry, LogEntry } from '../lib/storage'
 import { TargetSettings } from './TargetSettings'
 
@@ -57,8 +56,7 @@ const TREND_METRIC_OPTIONS: { key: TrendMetric; label: string; unit: string }[] 
 ]
 
 export function Stats({ logs, bodyWeightEntries }: { logs: LogEntry[]; bodyWeightEntries: BodyWeightEntry[] }) {
-  const isDark = useDarkMode()
-  const palette = useMemo(() => getChartPalette(isDark), [isDark])
+  const palette = useMemo(() => getChartPalette(), [])
   const now = useMemo(() => new Date(), [])
   const [range, setRange] = useState<RangeKey>('30d')
   const allExercises = useAllExercises()
@@ -160,7 +158,7 @@ export function Stats({ logs, bodyWeightEntries }: { logs: LogEntry[]; bodyWeigh
               onClick={() => setTrendRange(opt.key)}
               className="flex-1 rounded-full py-1.5 text-xs font-medium"
               style={{
-                background: trendRange === opt.key ? 'var(--series-push)' : 'var(--surface-page)',
+                background: trendRange === opt.key ? 'var(--accent)' : 'var(--surface-page)',
                 color: trendRange === opt.key ? '#fff' : 'var(--text-secondary)',
                 border: '1px solid var(--border)',
               }}
@@ -263,7 +261,7 @@ export function Stats({ logs, bodyWeightEntries }: { logs: LogEntry[]; bodyWeigh
             onClick={() => setRange(opt.key)}
             className="flex-1 rounded-full py-1.5 text-xs font-medium"
             style={{
-              background: range === opt.key ? 'var(--series-push)' : 'var(--surface-1)',
+              background: range === opt.key ? 'var(--accent)' : 'var(--surface-1)',
               color: range === opt.key ? '#fff' : 'var(--text-secondary)',
               border: '1px solid var(--border)',
             }}

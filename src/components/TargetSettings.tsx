@@ -20,7 +20,7 @@ export function TargetSettings() {
         <span className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
           Eigen doelen per spiergroep
         </span>
-        <span className="text-xs" style={{ color: 'var(--series-push)' }}>
+        <span className="text-xs" style={{ color: 'var(--accent)' }}>
           {open ? 'Verbergen' : 'Aanpassen'}
         </span>
       </button>

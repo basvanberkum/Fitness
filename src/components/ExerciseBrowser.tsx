@@ -65,7 +65,7 @@ export function ExerciseBrowser({ logs }: { logs: LogEntry[] }) {
             onClick={() => setCategory(cat)}
             className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium"
             style={{
-              background: category === cat ? 'var(--series-push)' : 'var(--surface-1)',
+              background: category === cat ? 'var(--accent)' : 'var(--surface-1)',
               color: category === cat ? '#fff' : 'var(--text-secondary)',
               border: '1px solid var(--border)',
             }}
@@ -82,7 +82,7 @@ export function ExerciseBrowser({ logs }: { logs: LogEntry[] }) {
           type="button"
           onClick={() => setShowAddForm(true)}
           className="w-full rounded-lg py-2 text-sm font-medium"
-          style={{ color: 'var(--series-push)', border: '1px dashed var(--border)' }}
+          style={{ color: 'var(--accent)', border: '1px dashed var(--border)' }}
         >
           + Nieuwe eigen oefening
         </button>
@@ -110,7 +110,7 @@ export function ExerciseBrowser({ logs }: { logs: LogEntry[] }) {
                   {isCustomExerciseId(exercise.id) && (
                     <span
                       className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                      style={{ background: 'var(--series-push)', color: '#fff' }}
+                      style={{ background: 'var(--accent)', color: '#fff' }}
                     >
                       Eigen
                     </span>

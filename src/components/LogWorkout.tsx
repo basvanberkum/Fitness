@@ -327,7 +327,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
             onClick={toggleListening}
             disabled={!speechSupported}
             className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white transition-colors disabled:opacity-40"
-            style={{ background: isListening ? 'var(--status-critical)' : 'var(--series-push)' }}
+            style={{ background: isListening ? 'var(--status-critical)' : 'var(--accent)' }}
             aria-pressed={isListening}
             aria-label={isListening ? 'Stop met luisteren' : 'Start spraakherkenning'}
           >
@@ -364,7 +364,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
             onClick={() => applyParsedText(transcript)}
             disabled={!transcript.trim()}
             className="text-xs font-medium underline disabled:opacity-40"
-            style={{ color: 'var(--series-push)' }}
+            style={{ color: 'var(--accent)' }}
           >
             Opnieuw interpreteren naar onderstaand formulier
           </button>
@@ -399,7 +399,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
                         <span style={{ color: 'var(--text-muted)' }}>· {summarizeSets(log.sets)}</span>
                       </span>
                       <div className="flex shrink-0 gap-2 text-xs">
-                        <button type="button" onClick={() => switchToEditingEntry(log)} style={{ color: 'var(--series-push)' }}>
+                        <button type="button" onClick={() => switchToEditingEntry(log)} style={{ color: 'var(--accent)' }}>
                           Bewerken
                         </button>
                         <button type="button" onClick={() => deleteLog(log.id)} style={{ color: 'var(--status-critical)' }}>
@@ -447,7 +447,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
         {editingSessionDateKey && (
           <p className="mt-2 rounded-lg px-3 py-2 text-xs" style={{ background: 'var(--surface-page)', color: 'var(--text-secondary)' }}>
             Je bewerkt een eerder gelogde training.{' '}
-            <button type="button" onClick={cancelEditing} className="underline" style={{ color: 'var(--series-push)' }}>
+            <button type="button" onClick={cancelEditing} className="underline" style={{ color: 'var(--accent)' }}>
               Annuleren
             </button>
           </p>
@@ -575,7 +575,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
           type="button"
           onClick={addSetRow}
           className="mt-2 w-full rounded-lg py-2 text-xs font-medium"
-          style={{ color: 'var(--series-push)', border: '1px dashed var(--border)' }}
+          style={{ color: 'var(--accent)', border: '1px dashed var(--border)' }}
         >
           + Set toevoegen
         </button>
@@ -584,7 +584,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
           type="button"
           onClick={addAnotherExercise}
           className="mt-3 w-full rounded-lg py-2 text-xs font-medium"
-          style={{ color: 'var(--series-push)', border: '1px dashed var(--border)' }}
+          style={{ color: 'var(--accent)', border: '1px dashed var(--border)' }}
         >
           + Nog een oefening {editingSessionDateKey ? 'aan deze training' : 'in deze workout'}
         </button>
@@ -593,7 +593,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
           type="button"
           onClick={handleSave}
           className="mt-3 w-full rounded-lg py-2.5 text-sm font-medium text-white"
-          style={{ background: 'var(--series-push)' }}
+          style={{ background: 'var(--accent)' }}
         >
           {editingSessionDateKey ? 'Wijzigingen opslaan' : hasPending ? 'Workout opslaan' : 'Opslaan'}
         </button>
@@ -634,7 +634,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
                   <button
                     type="button"
                     onClick={() => startEditing(log)}
-                    style={{ color: 'var(--series-push)' }}
+                    style={{ color: 'var(--accent)' }}
                     aria-label="Bewerken"
                   >
                     Bewerken

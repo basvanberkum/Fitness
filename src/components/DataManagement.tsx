@@ -67,7 +67,7 @@ export function DataManagement() {
           type="button"
           onClick={handleExport}
           className="mt-3 w-full rounded-lg py-2 text-sm font-medium"
-          style={{ color: 'var(--series-push)', border: '1px solid var(--border)' }}
+          style={{ color: 'var(--accent)', border: '1px solid var(--border)' }}
         >
           Exporteer als JSON
         </button>

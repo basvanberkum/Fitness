@@ -57,7 +57,7 @@ export function MuscleScoreCard({ score, logs, now }: { score: MuscleScore; logs
         <span style={{ color: 'var(--text-primary)' }}>{score.last30dWeeklyAverage}</span>
       </div>
 
-      <p className="mt-2 text-xs" style={{ color: 'var(--series-push)' }}>
+      <p className="mt-2 text-xs" style={{ color: 'var(--accent)' }}>
         {expanded ? '▴ Verberg onderbouwing' : '▾ Onderbouwing van deze week tonen'}
       </p>
 

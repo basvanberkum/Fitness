@@ -11,7 +11,6 @@ import {
   type ProgressMetric,
 } from '../lib/exerciseProgress'
 import type { LogEntry } from '../lib/storage'
-import { useDarkMode } from '../lib/useDarkMode'
 
 type RangeKey = '3m' | '6m' | '1j' | 'all'
 
@@ -46,8 +45,7 @@ export function ExerciseDetail({
   onBack: () => void
   onDeleted: () => void
 }) {
-  const isDark = useDarkMode()
-  const palette = useMemo(() => getChartPalette(isDark), [isDark])
+  const palette = useMemo(() => getChartPalette(), [])
   const now = useMemo(() => new Date(), [])
   const [range, setRange] = useState<RangeKey>('6m')
   const [metric, setMetric] = useState<ProgressMetric>('e1rm')
@@ -75,7 +73,7 @@ export function ExerciseDetail({
 
   return (
     <div className="flex flex-col gap-4 px-4 py-5">
-      <button type="button" onClick={onBack} className="self-start text-sm" style={{ color: 'var(--series-push)' }}>
+      <button type="button" onClick={onBack} className="self-start text-sm" style={{ color: 'var(--accent)' }}>
         ← Terug naar oefeningen
       </button>
 
@@ -165,7 +163,7 @@ export function ExerciseDetail({
             onClick={() => setRange(opt.key)}
             className="flex-1 rounded-full py-1.5 text-xs font-medium"
             style={{
-              background: range === opt.key ? 'var(--series-push)' : 'var(--surface-1)',
+              background: range === opt.key ? 'var(--accent)' : 'var(--surface-1)',
               color: range === opt.key ? '#fff' : 'var(--text-secondary)',
               border: '1px solid var(--border)',
             }}

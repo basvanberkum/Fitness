@@ -211,7 +211,7 @@ export function ImportCsv() {
               type="button"
               onClick={confirmMapping}
               className="flex-1 rounded-lg py-2 text-sm font-medium text-white"
-              style={{ background: 'var(--series-push)' }}
+              style={{ background: 'var(--accent)' }}
             >
               Volgende: oefeningen koppelen
             </button>
@@ -268,7 +268,7 @@ export function ImportCsv() {
               type="button"
               onClick={confirmExercises}
               className="flex-1 rounded-lg py-2 text-sm font-medium text-white"
-              style={{ background: 'var(--series-push)' }}
+              style={{ background: 'var(--accent)' }}
             >
               Volgende: controleren
             </button>
@@ -331,7 +331,7 @@ export function ImportCsv() {
               onClick={confirmImport}
               disabled={importableGroupCount === 0}
               className="flex-1 rounded-lg py-2 text-sm font-medium text-white disabled:opacity-40"
-              style={{ background: 'var(--series-push)' }}
+              style={{ background: 'var(--accent)' }}
             >
               Importeren
             </button>
@@ -359,7 +359,7 @@ export function ImportCsv() {
             type="button"
             onClick={reset}
             className="mt-3 w-full rounded-lg py-2 text-sm font-medium"
-            style={{ color: 'var(--series-push)', border: '1px solid var(--border)' }}
+            style={{ color: 'var(--accent)', border: '1px solid var(--border)' }}
           >
             Nog een bestand importeren
           </button>

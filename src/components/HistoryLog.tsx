@@ -156,7 +156,7 @@ export function HistoryLog({ logs }: { logs: LogEntry[] }) {
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
                       <SessionQualityBadge group={group} logs={logs} />
-                      <span className="text-xs" style={{ color: 'var(--series-push)' }}>
+                      <span className="text-xs" style={{ color: 'var(--accent)' }}>
                         {isOpen ? 'Verbergen' : 'Bekijken'}
                       </span>
                     </div>
@@ -180,7 +180,7 @@ export function HistoryLog({ logs }: { logs: LogEntry[] }) {
               type="button"
               onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
               className="mt-2 w-full rounded-lg py-2 text-sm font-medium"
-              style={{ color: 'var(--series-push)', border: '1px solid var(--border)' }}
+              style={{ color: 'var(--accent)', border: '1px solid var(--border)' }}
             >
               Meer laden ({dayGroups.length - visibleCount} dagen resterend)
             </button>

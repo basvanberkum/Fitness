@@ -38,7 +38,7 @@ export function Dashboard({ logs, onGoToData }: { logs: LogEntry[]; onGoToData: 
               ? 'Je hebt nog nooit een back-up gemaakt.'
               : `Je laatste back-up is ${backupAge} dagen geleden.`}
           </span>{' '}
-          <span style={{ color: 'var(--series-push)' }}>Maak nu een back-up in "Data" →</span>
+          <span style={{ color: 'var(--accent)' }}>Maak nu een back-up in "Data" →</span>
         </button>
       )}
 
