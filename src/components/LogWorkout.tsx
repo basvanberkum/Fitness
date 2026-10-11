@@ -95,6 +95,10 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
   const [workoutName, setWorkoutName] = useState('')
   const [logDate, setLogDate] = useState(() => toDateTimeLocalValue(new Date()))
   const [editingLogId, setEditingLogId] = useState<string | null>(null)
+  // Zodra je een eerder gelogde training bewerkt, blijft dit de hele sessie de datum (YYYY-MM-DD)
+  // van die training vasthouden — zo kunnen we de ANDERE oefeningen van diezelfde dag erbij tonen
+  // en ook bewerken/aanvullen, i.p.v. dat bewerken zich tot precies één losse log beperkt.
+  const [editingSessionDateKey, setEditingSessionDateKey] = useState<string | null>(null)
   const [pendingExercises, setPendingExercises] = useState<PendingExercise[]>([])
 
   const handleRef = useRef<VoiceListenHandle | null>(null)
@@ -103,6 +107,12 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
   // workout-namen meteen als suggestie verschijnen.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const recentWorkoutNames = useMemo(() => getRecentWorkoutNames(), [logs])
+  // Altijd vers uit `logs` afgeleid (niet in losse state gekopieerd), zodat deze lijst nooit
+  // uit de pas kan lopen met wat er daadwerkelijk is opgeslagen.
+  const otherEntriesInSession = useMemo(() => {
+    if (!editingSessionDateKey) return []
+    return logs.filter((l) => l.id !== editingLogId && new Date(l.date).toISOString().slice(0, 10) === editingSessionDateKey)
+  }, [logs, editingSessionDateKey, editingLogId])
 
   useEffect(() => () => handleRef.current?.stop(), [])
 
@@ -183,14 +193,63 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
     setPendingExercises((list) => list.filter((p) => p.key !== key))
   }
 
-  function handleSave() {
+  /** Slaat op wat nu in het formulier staat (bijwerken als het een bestaande log is,
+   * toevoegen als het een nieuwe oefening binnen de bewerk-sessie is). */
+  function commitCurrentEntry() {
+    const sets = draftRowsToSets(setRows, bodyweight)
+    const trimmedWorkoutName = workoutName.trim() || undefined
     if (editingLogId) {
       updateLog(editingLogId, {
         exerciseId,
-        sets: draftRowsToSets(setRows, bodyweight),
-        workoutName: workoutName.trim() || undefined,
+        sets,
+        workoutName: trimmedWorkoutName,
         date: fromDateTimeLocalValue(logDate).toISOString(),
       })
+    } else if (sets.some((s) => s.reps > 0)) {
+      addLog({
+        exerciseId,
+        date: fromDateTimeLocalValue(logDate).toISOString(),
+        sets,
+        workoutName: trimmedWorkoutName,
+        source: 'manual',
+      })
+    }
+  }
+
+  /** "+ Nog een oefening": binnen een bewerk-sessie wordt de huidige oefening eerst
+   * echt opgeslagen (update of nieuw), binnen het bouwen van een nieuwe workout blijft
+   * dit de bestaande "later in één keer opslaan"-aanpak. */
+  function addAnotherExercise() {
+    if (editingSessionDateKey) {
+      commitCurrentEntry()
+      setEditingLogId(null)
+      resetExerciseForm([emptyDraftRow('', '')])
+    } else {
+      addExerciseToWorkout()
+    }
+  }
+
+  function loadEntryIntoForm(log: LogEntry) {
+    setEditingLogId(log.id)
+    setExerciseId(log.exerciseId)
+    setBodyweight(log.sets.length > 0 && log.sets.every((s) => s.weight === 0))
+    setSetRows(setsToDraftRows(log.sets))
+    setLogDate(toDateTimeLocalValue(new Date(log.date)))
+    setTranscript('')
+    setSource('manual')
+  }
+
+  /** Wisselt binnen een bewerk-sessie naar een andere oefening van diezelfde training —
+   * eerst wordt opgeslagen wat nu in het formulier staat, zodat niets verloren gaat. */
+  function switchToEditingEntry(log: LogEntry) {
+    commitCurrentEntry()
+    loadEntryIntoForm(log)
+  }
+
+  function handleSave() {
+    if (editingSessionDateKey) {
+      commitCurrentEntry()
+      setEditingSessionDateKey(null)
       setEditingLogId(null)
       resetExerciseForm()
       setWorkoutName('')
@@ -232,18 +291,14 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
 
   function startEditing(log: LogEntry) {
     setPendingExercises([])
-    setEditingLogId(log.id)
-    setExerciseId(log.exerciseId)
+    setEditingSessionDateKey(new Date(log.date).toISOString().slice(0, 10))
+    loadEntryIntoForm(log)
     setWorkoutName(log.workoutName ?? '')
-    setBodyweight(log.sets.length > 0 && log.sets.every((s) => s.weight === 0))
-    setSetRows(setsToDraftRows(log.sets))
-    setLogDate(toDateTimeLocalValue(new Date(log.date)))
-    setTranscript('')
-    setSource('manual')
     document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   function cancelEditing() {
+    setEditingSessionDateKey(null)
     setEditingLogId(null)
     resetExerciseForm()
     setWorkoutName('')
@@ -316,41 +371,67 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
         </div>
       </section>
 
-      {hasPending && (
+      {(hasPending || (editingSessionDateKey && otherEntriesInSession.length > 0)) && (
         <section
           className="rounded-2xl p-5"
           style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
         >
           <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Deze workout tot nu toe
+            {editingSessionDateKey ? 'Andere oefeningen in deze training' : 'Deze workout tot nu toe'}
           </h2>
           <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            Deze oefeningen zijn al opgeslagen. Vul hieronder de volgende oefening in, of sla de workout af.
+            {editingSessionDateKey
+              ? 'Tik op "Bewerken" om een andere oefening van deze training aan te passen.'
+              : 'Deze oefeningen zijn al opgeslagen. Vul hieronder de volgende oefening in, of sla de workout af.'}
           </p>
           <div className="mt-3 flex flex-col gap-2">
-            {pendingExercises.map((p) => {
-              const exercise = findExercise(p.exerciseId)
-              return (
-                <div
-                  key={p.key}
-                  className="flex items-center justify-between rounded-lg px-3 py-2 text-sm"
-                  style={{ background: 'var(--surface-page)' }}
-                >
-                  <span style={{ color: 'var(--text-primary)' }}>
-                    {exercise?.name ?? p.exerciseId}{' '}
-                    <span style={{ color: 'var(--text-muted)' }}>· {summarizeSets(p.sets)}</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => removePendingExercise(p.key)}
-                    className="shrink-0 text-xs"
-                    style={{ color: 'var(--status-critical)' }}
-                  >
-                    Verwijderen
-                  </button>
-                </div>
-              )
-            })}
+            {editingSessionDateKey
+              ? otherEntriesInSession.map((log) => {
+                  const exercise = findExercise(log.exerciseId)
+                  return (
+                    <div
+                      key={log.id}
+                      className="flex items-center justify-between rounded-lg px-3 py-2 text-sm"
+                      style={{ background: 'var(--surface-page)' }}
+                    >
+                      <span style={{ color: 'var(--text-primary)' }}>
+                        {exercise?.name ?? log.exerciseId}{' '}
+                        <span style={{ color: 'var(--text-muted)' }}>· {summarizeSets(log.sets)}</span>
+                      </span>
+                      <div className="flex shrink-0 gap-2 text-xs">
+                        <button type="button" onClick={() => switchToEditingEntry(log)} style={{ color: 'var(--series-push)' }}>
+                          Bewerken
+                        </button>
+                        <button type="button" onClick={() => deleteLog(log.id)} style={{ color: 'var(--status-critical)' }}>
+                          Verwijderen
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })
+              : pendingExercises.map((p) => {
+                  const exercise = findExercise(p.exerciseId)
+                  return (
+                    <div
+                      key={p.key}
+                      className="flex items-center justify-between rounded-lg px-3 py-2 text-sm"
+                      style={{ background: 'var(--surface-page)' }}
+                    >
+                      <span style={{ color: 'var(--text-primary)' }}>
+                        {exercise?.name ?? p.exerciseId}{' '}
+                        <span style={{ color: 'var(--text-muted)' }}>· {summarizeSets(p.sets)}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removePendingExercise(p.key)}
+                        className="shrink-0 text-xs"
+                        style={{ color: 'var(--status-critical)' }}
+                      >
+                        Verwijderen
+                      </button>
+                    </div>
+                  )
+                })}
           </div>
         </section>
       )}
@@ -363,7 +444,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
           Controleer &amp; opslaan
         </h2>
 
-        {editingLogId && (
+        {editingSessionDateKey && (
           <p className="mt-2 rounded-lg px-3 py-2 text-xs" style={{ background: 'var(--surface-page)', color: 'var(--text-secondary)' }}>
             Je bewerkt een eerder gelogde training.{' '}
             <button type="button" onClick={cancelEditing} className="underline" style={{ color: 'var(--series-push)' }}>
@@ -401,9 +482,9 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
             style={{ background: 'var(--surface-page)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
           />
         </label>
-        {!editingLogId && hasPending && (
+        {!editingLogId && (hasPending || editingSessionDateKey) && (
           <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-            Geldt voor de volgende oefening die je aan deze workout toevoegt.
+            Geldt voor de volgende oefening die je toevoegt.
           </p>
         )}
 
@@ -499,16 +580,14 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
           + Set toevoegen
         </button>
 
-        {!editingLogId && (
-          <button
-            type="button"
-            onClick={addExerciseToWorkout}
-            className="mt-3 w-full rounded-lg py-2 text-xs font-medium"
-            style={{ color: 'var(--series-push)', border: '1px dashed var(--border)' }}
-          >
-            + Nog een oefening in deze workout
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={addAnotherExercise}
+          className="mt-3 w-full rounded-lg py-2 text-xs font-medium"
+          style={{ color: 'var(--series-push)', border: '1px dashed var(--border)' }}
+        >
+          + Nog een oefening {editingSessionDateKey ? 'aan deze training' : 'in deze workout'}
+        </button>
 
         <button
           type="button"
@@ -516,7 +595,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
           className="mt-3 w-full rounded-lg py-2.5 text-sm font-medium text-white"
           style={{ background: 'var(--series-push)' }}
         >
-          {editingLogId ? 'Wijzigingen opslaan' : hasPending ? 'Workout opslaan' : 'Opslaan'}
+          {editingSessionDateKey ? 'Wijzigingen opslaan' : hasPending ? 'Workout opslaan' : 'Opslaan'}
         </button>
       </section>
 
