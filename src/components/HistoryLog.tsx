@@ -74,7 +74,7 @@ function SessionQualityBreakdown({ group, logs }: { group: DayGroup; logs: LogEn
         <li>Herstel (25%, ~48u richtlijn): {score.recovery.toFixed(1)} / 10</li>
         <li>
           Tempo/intensiteit (25%): {score.tempo.toFixed(1)} / 10
-          {score.tempoBasis === 'unknown' && ' (onzeker, geen sessieduur bekend)'}
+          {score.tempoBasis === 'unknown' && ' (op basis van aantal sets, geen sessieduur bekend)'}
         </li>
         <li>Slimme oefeningkeuze (20%): {score.exerciseChoice.toFixed(1)} / 10</li>
       </ul>
