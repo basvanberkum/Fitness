@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { CATEGORY_LABELS, MUSCLE_LABELS, type ExerciseCategory, type MuscleGroup } from '../data/exercises'
+import { CARDIO_INTENSITY_LABELS } from '../lib/cardioTargets'
+import { CATEGORY_LABELS, MUSCLE_LABELS, type CardioIntensity, type ExerciseCategory, type MuscleGroup } from '../data/exercises'
 import { addCustomExercise } from '../lib/exerciseCatalog'
 
 const CATEGORIES: ExerciseCategory[] = ['push', 'pull', 'legs', 'core', 'cardio']
 const MUSCLES = Object.keys(MUSCLE_LABELS) as MuscleGroup[]
+const CARDIO_INTENSITIES: CardioIntensity[] = ['intensive', 'light']
 const NONE = '__none__'
 
 export function AddExerciseForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
@@ -11,6 +13,7 @@ export function AddExerciseForm({ onCreated, onCancel }: { onCreated: () => void
   const [category, setCategory] = useState<ExerciseCategory>('push')
   const [primaryMuscle, setPrimaryMuscle] = useState<MuscleGroup>('chest')
   const [secondaryMuscle, setSecondaryMuscle] = useState<string>(NONE)
+  const [cardioIntensity, setCardioIntensity] = useState<CardioIntensity>('intensive')
   const [aliasesText, setAliasesText] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -30,7 +33,7 @@ export function AddExerciseForm({ onCreated, onCancel }: { onCreated: () => void
       .map((a) => a.trim())
       .filter(Boolean)
 
-    addCustomExercise({ name, category, muscles, aliases })
+    addCustomExercise({ name, category, muscles, aliases, cardioIntensity })
     onCreated()
   }
 
@@ -75,9 +78,26 @@ export function AddExerciseForm({ onCreated, onCancel }: { onCreated: () => void
       </label>
 
       {category === 'cardio' && (
-        <p className="mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
-          Cardio-oefeningen hebben geen spiergroep-indeling — de meeteenheid is tijd en/of afstand.
-        </p>
+        <>
+          <p className="mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+            Cardio-oefeningen hebben geen spiergroep-indeling — de meeteenheid is tijd en/of afstand.
+          </p>
+          <label className="mt-3 block text-sm" style={{ color: 'var(--text-secondary)' }}>
+            Intensiteit (voor je wekelijkse cardio-doel)
+            <select
+              value={cardioIntensity}
+              onChange={(e) => setCardioIntensity(e.target.value as CardioIntensity)}
+              className="mt-1 w-full rounded-lg px-3 py-2 text-sm"
+              style={{ background: 'var(--surface-page)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+            >
+              {CARDIO_INTENSITIES.map((i) => (
+                <option key={i} value={i}>
+                  {CARDIO_INTENSITY_LABELS[i]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
       )}
 
       {category !== 'cardio' && (

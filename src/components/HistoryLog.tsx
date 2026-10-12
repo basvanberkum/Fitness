@@ -59,11 +59,15 @@ function ExerciseEntryRow({ entry }: { entry: LogEntry }) {
 function SessionQualityBadge({ group, logs }: { group: DayGroup; logs: LogEntry[] }) {
   // Lazy: alleen berekend voor dagen die daadwerkelijk zichtbaar zijn gerenderd.
   const score = useMemo(() => computeSessionQualityScore(group, logs), [group, logs])
+  const title =
+    score.kind === 'cardio'
+      ? 'Inschatting van trainingskwaliteit (bijdrage aan je wekelijkse cardio-doel) — geen gevalideerd advies'
+      : 'Inschatting van trainingskwaliteit (doelbijdrage, herstel, tempo, oefeningkeuze) — geen gevalideerd advies'
   return (
     <span
       className="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
       style={{ background: qualityScoreColor(score.overall), color: 'white' }}
-      title="Inschatting van trainingskwaliteit (doelbijdrage, herstel, tempo, oefeningkeuze) — geen gevalideerd advies"
+      title={title}
     >
       {score.overall.toFixed(1)}
     </span>
@@ -78,13 +82,19 @@ function SessionQualityBreakdown({ group, logs }: { group: DayGroup; logs: LogEn
         Trainingskwaliteit: {score.overall.toFixed(1)} / 10
       </p>
       <ul className="flex flex-col gap-0.5" style={{ color: 'var(--text-secondary)' }}>
-        <li>Doelbijdrage (30%): {score.goalAlignment.toFixed(1)} / 10</li>
-        <li>Herstel (25%, ~48u richtlijn): {score.recovery.toFixed(1)} / 10</li>
-        <li>
-          Tempo/intensiteit (25%): {score.tempo.toFixed(1)} / 10
-          {score.tempoBasis === 'unknown' && ' (op basis van aantal sets, geen sessieduur bekend)'}
-        </li>
-        <li>Slimme oefeningkeuze (20%): {score.exerciseChoice.toFixed(1)} / 10</li>
+        {score.kind === 'cardio' ? (
+          <li>Bijdrage aan wekelijks cardio-doel: {score.cardioGoalContribution.toFixed(1)} / 10</li>
+        ) : (
+          <>
+            <li>Doelbijdrage (30%): {score.goalAlignment.toFixed(1)} / 10</li>
+            <li>Herstel (25%, ~48u richtlijn): {score.recovery.toFixed(1)} / 10</li>
+            <li>
+              Tempo/intensiteit (25%): {score.tempo.toFixed(1)} / 10
+              {score.tempoBasis === 'unknown' && ' (op basis van aantal sets, geen sessieduur bekend)'}
+            </li>
+            <li>Slimme oefeningkeuze (20%): {score.exerciseChoice.toFixed(1)} / 10</li>
+          </>
+        )}
       </ul>
       {score.notes.length > 0 && (
         <ul className="mt-1.5 flex flex-col gap-0.5 italic" style={{ color: 'var(--text-muted)' }}>

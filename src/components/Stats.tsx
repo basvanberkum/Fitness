@@ -12,6 +12,7 @@ import { findExercise } from '../lib/exerciseCatalog'
 import { computeMuscleWeeklyAverage } from '../lib/scoring'
 import { useAllExercises } from '../lib/useAllExercises'
 import type { BodyWeightEntry, LogEntry } from '../lib/storage'
+import { CardioTargetSettings } from './CardioTargetSettings'
 import { TargetSettings } from './TargetSettings'
 
 function withinDays(dateIso: string, days: number, now: Date): boolean {
@@ -367,6 +368,8 @@ export function Stats({ logs, bodyWeightEntries }: { logs: LogEntry[]; bodyWeigh
       </section>
 
       <TargetSettings />
+
+      <CardioTargetSettings />
 
       <section
         className="rounded-2xl p-4"

@@ -1,12 +1,15 @@
 import { useMemo } from 'react'
 import { daysSinceLastBackup, type LogEntry } from '../lib/storage'
+import { computeCardioScores } from '../lib/cardioScoring'
 import { computeMuscleScores, computeOverallLast30dScore, computeOverallScore, generateTips } from '../lib/scoring'
 import { statusColorForScore } from '../lib/statusMeta'
+import { CardioScoreCard } from './CardioScoreCard'
 import { MuscleScoreCard } from './MuscleScoreCard'
 
 export function Dashboard({ logs, onGoToData }: { logs: LogEntry[]; onGoToData: () => void }) {
   const now = useMemo(() => new Date(), [])
   const scores = useMemo(() => computeMuscleScores(logs, now), [logs, now])
+  const cardioScores = useMemo(() => computeCardioScores(logs, now), [logs, now])
   const overall = useMemo(() => computeOverallScore(scores), [scores])
   const overallLast30d = useMemo(() => computeOverallLast30dScore(scores), [scores])
   const tips = useMemo(() => generateTips(logs, now), [logs, now])
@@ -121,6 +124,20 @@ export function Dashboard({ logs, onGoToData }: { logs: LogEntry[]; onGoToData: 
         <div className="flex flex-col gap-3">
           {sortedScores.map((score) => (
             <MuscleScoreCard key={score.muscle} score={score} logs={logs} now={now} />
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-2 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Cardio
+        </h2>
+        <p className="mb-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+          Telt niet mee in de weekscore hierboven — dat is losse voortgang t.o.v. je eigen wekelijkse cardio-doelen.
+        </p>
+        <div className="flex flex-col gap-3">
+          {cardioScores.map((score) => (
+            <CardioScoreCard key={score.intensity} score={score} />
           ))}
         </div>
       </section>

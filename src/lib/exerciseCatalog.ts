@@ -1,4 +1,4 @@
-import { EXERCISES, type Exercise, type ExerciseCategory, type MuscleGroup } from '../data/exercises'
+import { EXERCISES, type CardioIntensity, type Exercise, type ExerciseCategory, type MuscleGroup } from '../data/exercises'
 
 const STORAGE_KEY = 'fitness-tracker:custom-exercises:v1'
 const EVENT_NAME = 'fitness-tracker:custom-exercises-changed'
@@ -37,6 +37,8 @@ export interface NewCustomExercise {
   category: ExerciseCategory
   muscles: Partial<Record<MuscleGroup, number>>
   aliases: string[]
+  /** Alleen relevant voor category 'cardio' */
+  cardioIntensity?: CardioIntensity
 }
 
 /** Voegt een eigen oefening toe. Retourneert de aangemaakte oefening. */
@@ -57,6 +59,7 @@ export function addCustomExercise(input: NewCustomExercise): Exercise {
     category: input.category,
     muscles: input.muscles,
     aliases: input.aliases.map((a) => a.trim()).filter(Boolean),
+    cardioIntensity: input.category === 'cardio' ? (input.cardioIntensity ?? 'intensive') : undefined,
   }
   writeCustomRaw([...existing, exercise])
   return exercise

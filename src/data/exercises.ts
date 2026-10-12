@@ -33,6 +33,8 @@ export const CATEGORY_LABELS: Record<ExerciseCategory, string> = {
   cardio: 'Cardio',
 }
 
+export type CardioIntensity = 'intensive' | 'light'
+
 export interface Exercise {
   id: string
   name: string
@@ -41,6 +43,9 @@ export interface Exercise {
   muscles: Partial<Record<MuscleGroup, number>>
   /** Alternatieve namen/uitspraakvarianten voor spraak- en tekstherkenning (NL) */
   aliases: string[]
+  /** Alleen voor category 'cardio': telt mee voor het intensieve of het lichte
+   * wekelijkse cardio-doel. Standaard 'intensive' als niet gezet. */
+  cardioIntensity?: CardioIntensity
 }
 
 export const EXERCISES: Exercise[] = [
@@ -650,6 +655,7 @@ export const EXERCISES: Exercise[] = [
     category: 'cardio',
     muscles: {},
     aliases: ['hardlopen', 'rennen', 'joggen', 'running', 'hardloopsessie', 'duurloop', 'intervaltraining lopen'],
+    cardioIntensity: 'intensive',
   },
   {
     id: 'cycling',
@@ -657,6 +663,7 @@ export const EXERCISES: Exercise[] = [
     category: 'cardio',
     muscles: {},
     aliases: ['fietsen', 'wielrennen', 'mountainbiken', 'racefietsen', 'cycling', 'fietstocht'],
+    cardioIntensity: 'intensive',
   },
   {
     id: 'swimming',
@@ -664,6 +671,7 @@ export const EXERCISES: Exercise[] = [
     category: 'cardio',
     muscles: {},
     aliases: ['zwemmen', 'baantjes trekken', 'swimming', 'zwemtraining'],
+    cardioIntensity: 'intensive',
   },
   {
     id: 'walking',
@@ -671,6 +679,7 @@ export const EXERCISES: Exercise[] = [
     category: 'cardio',
     muscles: {},
     aliases: ['wandelen', 'wandeling', 'stappen', 'hiken', 'hiking', 'walking'],
+    cardioIntensity: 'light',
   },
   {
     id: 'skateboarding',
@@ -678,6 +687,7 @@ export const EXERCISES: Exercise[] = [
     category: 'cardio',
     muscles: {},
     aliases: ['skateboarden', 'skaten op skateboard', 'skateboarding'],
+    cardioIntensity: 'intensive',
   },
   {
     id: 'rowing-machine',
@@ -685,6 +695,7 @@ export const EXERCISES: Exercise[] = [
     category: 'cardio',
     muscles: {},
     aliases: ['roeien', 'rowing', 'roeimachine', 'concept2', 'indoor roeien'],
+    cardioIntensity: 'intensive',
   },
   {
     id: 'elliptical',
@@ -692,6 +703,7 @@ export const EXERCISES: Exercise[] = [
     category: 'cardio',
     muscles: {},
     aliases: ['crosstrainer', 'elliptical', 'ellipstrainer', 'ellips trainer'],
+    cardioIntensity: 'intensive',
   },
   {
     id: 'jump-rope',
@@ -699,6 +711,7 @@ export const EXERCISES: Exercise[] = [
     category: 'cardio',
     muscles: {},
     aliases: ['touwtjespringen', 'springtouw', 'jump rope', 'touwtje springen'],
+    cardioIntensity: 'intensive',
   },
 ]
 
