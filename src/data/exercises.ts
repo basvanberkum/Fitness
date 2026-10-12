@@ -10,7 +10,7 @@ export type MuscleGroup =
   | 'calves'
   | 'core'
 
-export type ExerciseCategory = 'push' | 'pull' | 'legs' | 'core'
+export type ExerciseCategory = 'push' | 'pull' | 'legs' | 'core' | 'cardio'
 
 export const MUSCLE_LABELS: Record<MuscleGroup, string> = {
   chest: 'Borst',
@@ -30,6 +30,7 @@ export const CATEGORY_LABELS: Record<ExerciseCategory, string> = {
   pull: 'Pull',
   legs: 'Legs',
   core: 'Core',
+  cardio: 'Cardio',
 }
 
 export interface Exercise {
@@ -637,6 +638,67 @@ export const EXERCISES: Exercise[] = [
     category: 'core',
     muscles: { core: 1 },
     aliases: ['sit-ups', 'sit ups', 'buikspitsen'],
+  },
+
+  // ---------- CARDIO ----------
+  // Geen vaste spiergroep-belasting (muscles: {}) — deze oefeningen tellen bewust niet mee
+  // in de push/pull/legs/core-spiergroepscore, die uitgaat van sets kracht-/isolatiewerk.
+  // Meeteenheid is tijd en/of afstand (zie SetEntry.durationMinutes / distanceKm).
+  {
+    id: 'running',
+    name: 'Hardlopen',
+    category: 'cardio',
+    muscles: {},
+    aliases: ['hardlopen', 'rennen', 'joggen', 'running', 'hardloopsessie', 'duurloop', 'intervaltraining lopen'],
+  },
+  {
+    id: 'cycling',
+    name: 'Fietsen',
+    category: 'cardio',
+    muscles: {},
+    aliases: ['fietsen', 'wielrennen', 'mountainbiken', 'racefietsen', 'cycling', 'fietstocht'],
+  },
+  {
+    id: 'swimming',
+    name: 'Zwemmen',
+    category: 'cardio',
+    muscles: {},
+    aliases: ['zwemmen', 'baantjes trekken', 'swimming', 'zwemtraining'],
+  },
+  {
+    id: 'walking',
+    name: 'Wandelen',
+    category: 'cardio',
+    muscles: {},
+    aliases: ['wandelen', 'wandeling', 'stappen', 'hiken', 'hiking', 'walking'],
+  },
+  {
+    id: 'skateboarding',
+    name: 'Skateboarden',
+    category: 'cardio',
+    muscles: {},
+    aliases: ['skateboarden', 'skaten op skateboard', 'skateboarding'],
+  },
+  {
+    id: 'rowing-machine',
+    name: 'Roeien',
+    category: 'cardio',
+    muscles: {},
+    aliases: ['roeien', 'rowing', 'roeimachine', 'concept2', 'indoor roeien'],
+  },
+  {
+    id: 'elliptical',
+    name: 'Crosstrainer',
+    category: 'cardio',
+    muscles: {},
+    aliases: ['crosstrainer', 'elliptical', 'ellipstrainer', 'ellips trainer'],
+  },
+  {
+    id: 'jump-rope',
+    name: 'Touwtjespringen',
+    category: 'cardio',
+    muscles: {},
+    aliases: ['touwtjespringen', 'springtouw', 'jump rope', 'touwtje springen'],
   },
 ]
 

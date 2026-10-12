@@ -11,6 +11,18 @@ export function summarizeSets(sets: SetEntry[]): string {
   const label = `${count} set${count === 1 ? '' : 's'}`
   if (count === 0) return label
 
+  const isCardio = sets.every(
+    (s) => s.reps === 0 && s.weight === 0 && (s.durationMinutes != null || s.distanceKm != null),
+  )
+  if (isCardio) {
+    const totalDuration = sets.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0)
+    const totalDistance = Math.round(sets.reduce((sum, s) => sum + (s.distanceKm ?? 0), 0) * 100) / 100
+    const parts: string[] = []
+    if (totalDuration > 0) parts.push(`${totalDuration} min`)
+    if (totalDistance > 0) parts.push(`${totalDistance} km`)
+    return parts.length > 0 ? parts.join(' · ') : label
+  }
+
   const [first] = sets
   const uniform = sets.every((s) => s.reps === first.reps && s.weight === first.weight)
   if (!uniform) return label

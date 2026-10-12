@@ -2,6 +2,10 @@ export interface SetEntry {
   reps: number
   weight: number
   note?: string
+  /** Voor cardio-oefeningen: duur in minuten (i.p.v. reps/gewicht) */
+  durationMinutes?: number
+  /** Voor cardio-oefeningen: afstand in km (i.p.v. reps/gewicht) */
+  distanceKm?: number
 }
 
 export interface LogEntry {

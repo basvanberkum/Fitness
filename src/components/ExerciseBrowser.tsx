@@ -6,7 +6,7 @@ import { useAllExercises } from '../lib/useAllExercises'
 import { AddExerciseForm } from './AddExerciseForm'
 import { ExerciseDetail } from './ExerciseDetail'
 
-const CATEGORIES: (ExerciseCategory | 'all')[] = ['all', 'push', 'pull', 'legs', 'core']
+const CATEGORIES: (ExerciseCategory | 'all')[] = ['all', 'push', 'pull', 'legs', 'core', 'cardio']
 
 function lastPerformed(exerciseId: string, logs: LogEntry[]): string | null {
   let mostRecent: number | null = null
@@ -124,7 +124,7 @@ export function ExerciseBrowser({ logs }: { logs: LogEntry[] }) {
                 </span>
               </div>
               <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                {muscleNames.join(', ')}
+                {muscleNames.length > 0 ? muscleNames.join(', ') : 'Tijd en/of afstand'}
               </p>
               <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
                 {last ? `Laatst gedaan: ${last}` : 'Nog niet gedaan'}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { CATEGORY_LABELS, MUSCLE_LABELS, type ExerciseCategory, type MuscleGroup } from '../data/exercises'
 import { addCustomExercise } from '../lib/exerciseCatalog'
 
-const CATEGORIES: ExerciseCategory[] = ['push', 'pull', 'legs', 'core']
+const CATEGORIES: ExerciseCategory[] = ['push', 'pull', 'legs', 'core', 'cardio']
 const MUSCLES = Object.keys(MUSCLE_LABELS) as MuscleGroup[]
 const NONE = '__none__'
 
@@ -19,8 +19,11 @@ export function AddExerciseForm({ onCreated, onCancel }: { onCreated: () => void
       setError('Geef de oefening een naam.')
       return
     }
-    const muscles: Partial<Record<MuscleGroup, number>> = { [primaryMuscle]: 1 }
-    if (secondaryMuscle !== NONE) muscles[secondaryMuscle as MuscleGroup] = 0.4
+    const muscles: Partial<Record<MuscleGroup, number>> = {}
+    if (category !== 'cardio') {
+      muscles[primaryMuscle] = 1
+      if (secondaryMuscle !== NONE) muscles[secondaryMuscle as MuscleGroup] = 0.4
+    }
 
     const aliases = aliasesText
       .split(/[,\n]/)
@@ -71,6 +74,13 @@ export function AddExerciseForm({ onCreated, onCancel }: { onCreated: () => void
         </select>
       </label>
 
+      {category === 'cardio' && (
+        <p className="mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+          Cardio-oefeningen hebben geen spiergroep-indeling — de meeteenheid is tijd en/of afstand.
+        </p>
+      )}
+
+      {category !== 'cardio' && (
       <div className="mt-3 grid grid-cols-2 gap-2">
         <label className="text-sm" style={{ color: 'var(--text-secondary)' }}>
           Primaire spiergroep
@@ -104,6 +114,7 @@ export function AddExerciseForm({ onCreated, onCancel }: { onCreated: () => void
           </select>
         </label>
       </div>
+      )}
 
       <label className="mt-3 block text-sm" style={{ color: 'var(--text-secondary)' }}>
         Alternatieve namen (optioneel, komma-gescheiden)

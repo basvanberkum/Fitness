@@ -35,14 +35,22 @@ function ExerciseEntryRow({ entry }: { entry: LogEntry }) {
         </button>
       </div>
       <ul className="mt-2 flex flex-col gap-1">
-        {entry.sets.map((s, i) => (
-          <li key={i} className="flex items-center justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
-            <span>
-              Set {i + 1}: {s.reps} reps{s.weight ? ` × ${s.weight} kg` : ' (eigen gewicht)'}
-            </span>
-            {s.note && <span className="italic" style={{ color: 'var(--text-muted)' }}>{s.note}</span>}
-          </li>
-        ))}
+        {entry.sets.map((s, i) => {
+          const isCardioSet = s.reps === 0 && s.weight === 0 && (s.durationMinutes != null || s.distanceKm != null)
+          const cardioParts = [s.durationMinutes ? `${s.durationMinutes} min` : null, s.distanceKm ? `${s.distanceKm} km` : null].filter(
+            (p): p is string => !!p,
+          )
+          return (
+            <li key={i} className="flex items-center justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
+              <span>
+                {isCardioSet
+                  ? `Sessie ${i + 1}: ${cardioParts.join(' · ')}`
+                  : `Set ${i + 1}: ${s.reps} reps${s.weight ? ` × ${s.weight} kg` : ' (eigen gewicht)'}`}
+              </span>
+              {s.note && <span className="italic" style={{ color: 'var(--text-muted)' }}>{s.note}</span>}
+            </li>
+          )
+        })}
       </ul>
     </div>
   )

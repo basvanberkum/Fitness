@@ -72,7 +72,8 @@ export function buildCategoryVolumeSeries(
     const bucket = buckets.get(key)
     if (!bucket) continue
     const category = exerciseCategoryById.get(log.exerciseId)
-    if (!category) continue
+    // Cardio heeft geen plek in deze push/pull/legs/core-balansgrafiek.
+    if (!category || category === 'cardio') continue
     bucket[category] += log.sets.length
   }
 

@@ -17,7 +17,7 @@ const OPTIONAL_FIELDS: ImportField[] = [
   'endDate',
   'bodyWeight',
 ]
-const CATEGORIES: ExerciseCategory[] = ['push', 'pull', 'legs', 'core']
+const CATEGORIES: ExerciseCategory[] = ['push', 'pull', 'legs', 'core', 'cardio']
 const SKIP = '__skip__'
 
 type Step = 'upload' | 'mapping' | 'exercises' | 'preview' | 'done'

@@ -1,7 +1,7 @@
 import { bucketKeyFor, labelFor, type Granularity } from './chartData'
 import type { LogEntry } from './storage'
 
-export type ProgressMetric = 'e1rm' | 'maxWeight' | 'volume'
+export type ProgressMetric = 'e1rm' | 'maxWeight' | 'volume' | 'cardioDuration' | 'cardioDistance'
 
 export interface ProgressPoint {
   bucketKey: string
@@ -50,13 +50,18 @@ export function buildExerciseProgressSeries(
       bucket.values.push(log.sets.reduce((sum, s) => sum + s.reps * s.weight, 0))
     } else if (metric === 'maxWeight') {
       bucket.values.push(Math.max(0, ...log.sets.map((s) => s.weight)))
+    } else if (metric === 'cardioDuration') {
+      bucket.values.push(log.sets.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0))
+    } else if (metric === 'cardioDistance') {
+      bucket.values.push(log.sets.reduce((sum, s) => sum + (s.distanceKm ?? 0), 0))
     } else {
       bucket.values.push(Math.max(0, ...log.sets.map((s) => estimatedOneRepMax(s.weight, s.reps))))
     }
   }
 
+  const isSumMetric = metric === 'volume' || metric === 'cardioDuration' || metric === 'cardioDistance'
   const points: ProgressPoint[] = [...buckets.entries()].map(([bucketKey, { dateLabel, values }]) => {
-    const value = metric === 'volume' ? values.reduce((a, b) => a + b, 0) : Math.max(...values)
+    const value = isSumMetric ? values.reduce((a, b) => a + b, 0) : Math.max(...values)
     return { bucketKey, dateLabel, value: Math.round(value * 10) / 10 }
   })
 
@@ -70,6 +75,8 @@ export interface ExerciseLifetimeStats {
   maxWeight: number
   bestE1rm: number
   averageWeight: number
+  totalDurationMinutes: number
+  totalDistanceKm: number
   firstPerformed: string | null
   lastPerformed: string | null
 }
@@ -84,6 +91,8 @@ export function computeExerciseLifetimeStats(logs: LogEntry[], exerciseId: strin
   let bestE1rm = 0
   let weightSum = 0
   let weightedSetCount = 0
+  let totalDurationMinutes = 0
+  let totalDistanceKm = 0
   let first: string | null = null
   let last: string | null = null
 
@@ -100,6 +109,8 @@ export function computeExerciseLifetimeStats(logs: LogEntry[], exerciseId: strin
         weightSum += s.weight
         weightedSetCount++
       }
+      totalDurationMinutes += s.durationMinutes ?? 0
+      totalDistanceKm += s.distanceKm ?? 0
     }
   }
 
@@ -110,6 +121,8 @@ export function computeExerciseLifetimeStats(logs: LogEntry[], exerciseId: strin
     maxWeight: Math.round(maxWeight * 10) / 10,
     bestE1rm: Math.round(bestE1rm * 10) / 10,
     averageWeight: weightedSetCount > 0 ? Math.round((weightSum / weightedSetCount) * 10) / 10 : 0,
+    totalDurationMinutes: Math.round(totalDurationMinutes),
+    totalDistanceKm: Math.round(totalDistanceKm * 100) / 100,
     firstPerformed: first,
     lastPerformed: last,
   }
@@ -119,6 +132,8 @@ export interface LastPerformed {
   date: string
   maxWeight: number
   totalSets: number
+  durationMinutes: number
+  distanceKm: number
 }
 
 export function lastPerformedSummary(logs: LogEntry[], exerciseId: string): LastPerformed | null {
@@ -132,5 +147,7 @@ export function lastPerformedSummary(logs: LogEntry[], exerciseId: string): Last
     date: latest.date,
     maxWeight: Math.max(0, ...latest.sets.map((s) => s.weight)),
     totalSets: latest.sets.length,
+    durationMinutes: Math.round(latest.sets.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0)),
+    distanceKm: Math.round(latest.sets.reduce((sum, s) => sum + (s.distanceKm ?? 0), 0) * 100) / 100,
   }
 }

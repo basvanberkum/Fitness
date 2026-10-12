@@ -21,10 +21,15 @@ const RANGE_OPTIONS: { key: RangeKey; label: string; days: number | null }[] = [
   { key: 'all', label: 'Alles', days: null },
 ]
 
-const METRIC_OPTIONS: { key: ProgressMetric; label: string; unit: string }[] = [
+const STRENGTH_METRIC_OPTIONS: { key: ProgressMetric; label: string; unit: string }[] = [
   { key: 'e1rm', label: 'Geschat 1 herhalingsmax', unit: 'kg' },
   { key: 'maxWeight', label: 'Top gewicht per sessie', unit: 'kg' },
   { key: 'volume', label: 'Totaal volume (reps × kg)', unit: '' },
+]
+
+const CARDIO_METRIC_OPTIONS: { key: ProgressMetric; label: string; unit: string }[] = [
+  { key: 'cardioDuration', label: 'Duur per sessie', unit: 'min' },
+  { key: 'cardioDistance', label: 'Afstand per sessie', unit: 'km' },
 ]
 
 function daysSinceEarliestForExercise(logs: LogEntry[], exerciseId: string, now: Date): number {
@@ -45,10 +50,12 @@ export function ExerciseDetail({
   onBack: () => void
   onDeleted: () => void
 }) {
+  const isCardio = exercise.category === 'cardio'
+  const metricOptions = isCardio ? CARDIO_METRIC_OPTIONS : STRENGTH_METRIC_OPTIONS
   const palette = useMemo(() => getChartPalette(), [])
   const now = useMemo(() => new Date(), [])
   const [range, setRange] = useState<RangeKey>('6m')
-  const [metric, setMetric] = useState<ProgressMetric>('e1rm')
+  const [metric, setMetric] = useState<ProgressMetric>(isCardio ? 'cardioDuration' : 'e1rm')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   const rangeDays = useMemo(() => {
@@ -63,7 +70,7 @@ export function ExerciseDetail({
   )
   const last = useMemo(() => lastPerformedSummary(logs, exercise.id), [logs, exercise.id])
   const lifetime = useMemo(() => computeExerciseLifetimeStats(logs, exercise.id), [logs, exercise.id])
-  const metricInfo = METRIC_OPTIONS.find((m) => m.key === metric)!
+  const metricInfo = metricOptions.find((m) => m.key === metric) ?? metricOptions[0]
   const xAxisInterval = Math.max(0, Math.ceil(points.length / 6) - 1)
 
   function handleDelete() {
@@ -82,19 +89,67 @@ export function ExerciseDetail({
           {exercise.name}
         </h1>
         <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-          {Object.keys(exercise.muscles)
-            .map((m) => MUSCLE_LABELS[m as MuscleGroup])
-            .join(', ')}
+          {isCardio
+            ? 'Tijd en/of afstand'
+            : Object.keys(exercise.muscles)
+                .map((m) => MUSCLE_LABELS[m as MuscleGroup])
+                .join(', ')}
         </p>
         {last && (
           <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-            Laatst gedaan: {new Date(last.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })} ·{' '}
-            {last.totalSets} sets · top {last.maxWeight}kg
+            Laatst gedaan: {new Date(last.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
+            {isCardio
+              ? [
+                  last.durationMinutes > 0 ? ` · ${last.durationMinutes} min` : null,
+                  last.distanceKm > 0 ? ` · ${last.distanceKm} km` : null,
+                ]
+                  .filter(Boolean)
+                  .join('')
+              : ` · ${last.totalSets} sets · top ${last.maxWeight}kg`}
           </p>
         )}
       </div>
 
-      {lifetime.totalSets > 0 && (
+      {isCardio && lifetime.totalSets > 0 && (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl p-3" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Totale afstand
+            </p>
+            <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {lifetime.totalDistanceKm} km
+            </p>
+          </div>
+          <div className="rounded-xl p-3" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Totale tijd
+            </p>
+            <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {lifetime.totalDurationMinutes} min
+            </p>
+          </div>
+          {lifetime.totalDistanceKm > 0 && lifetime.totalDurationMinutes > 0 && (
+            <div className="rounded-xl p-3" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Gem. tempo
+              </p>
+              <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+                {Math.round((lifetime.totalDurationMinutes / lifetime.totalDistanceKm) * 10) / 10} min/km
+              </p>
+            </div>
+          )}
+          <div className="rounded-xl p-3" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Aantal keer gedaan
+            </p>
+            <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {lifetime.totalSessions}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {!isCardio && lifetime.totalSets > 0 && (
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-xl p-3" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -147,7 +202,7 @@ export function ExerciseDetail({
           className="mt-1 w-full rounded-lg px-3 py-2 text-sm"
           style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
         >
-          {METRIC_OPTIONS.map((m) => (
+          {metricOptions.map((m) => (
             <option key={m.key} value={m.key}>
               {m.label}
             </option>

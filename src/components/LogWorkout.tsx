@@ -11,7 +11,7 @@ import {
   type VoiceListenHandle,
 } from '../lib/voiceParser'
 
-const CATEGORIES: ExerciseCategory[] = ['push', 'pull', 'legs', 'core']
+const CATEGORIES: ExerciseCategory[] = ['push', 'pull', 'legs', 'core', 'cardio']
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('nl-NL', {
@@ -29,6 +29,10 @@ function formatDateTime(iso: string): string {
 interface DraftSetRow {
   reps: string
   weight: string
+  /** Voor cardio-oefeningen: duur in minuten */
+  duration: string
+  /** Voor cardio-oefeningen: afstand in km */
+  distance: string
   note?: string
 }
 
@@ -41,8 +45,8 @@ interface PendingExercise {
   source: 'voice' | 'manual'
 }
 
-function emptyDraftRow(reps = '10', weight = '20'): DraftSetRow {
-  return { reps, weight }
+function emptyDraftRow(reps = '10', weight = '20', duration = '', distance = ''): DraftSetRow {
+  return { reps, weight, duration, distance }
 }
 
 function sanitizeDigits(value: string): string {
@@ -57,7 +61,16 @@ function sanitizeDecimal(value: string): string {
   return normalized.slice(0, firstDot + 1) + normalized.slice(firstDot + 1).replace(/\./g, '')
 }
 
-function draftRowsToSets(rows: DraftSetRow[], isBodyweight: boolean): SetEntry[] {
+function draftRowsToSets(rows: DraftSetRow[], isBodyweight: boolean, isCardio: boolean): SetEntry[] {
+  if (isCardio) {
+    return rows.map((r) => ({
+      reps: 0,
+      weight: 0,
+      durationMinutes: r.duration ? Math.max(0, Number(r.duration) || 0) : undefined,
+      distanceKm: r.distance ? Math.max(0, Number(r.distance) || 0) : undefined,
+      note: r.note?.trim() || undefined,
+    }))
+  }
   return rows.map((r) => ({
     reps: Math.max(0, Math.round(Number(r.reps) || 0)),
     weight: isBodyweight ? 0 : Math.max(0, Number(r.weight) || 0),
@@ -66,7 +79,21 @@ function draftRowsToSets(rows: DraftSetRow[], isBodyweight: boolean): SetEntry[]
 }
 
 function setsToDraftRows(sets: SetEntry[]): DraftSetRow[] {
-  return sets.length > 0 ? sets.map((s) => ({ reps: String(s.reps), weight: String(s.weight), note: s.note })) : [emptyDraftRow()]
+  return sets.length > 0
+    ? sets.map((s) => ({
+        reps: String(s.reps),
+        weight: String(s.weight),
+        duration: s.durationMinutes != null ? String(s.durationMinutes) : '',
+        distance: s.distanceKm != null ? String(s.distanceKm) : '',
+        note: s.note,
+      }))
+    : [emptyDraftRow()]
+}
+
+/** Of er daadwerkelijk iets is ingevuld om op te slaan — voor kracht via reps, voor
+ * cardio via duur en/of afstand. */
+function hasLoggableData(sets: SetEntry[]): boolean {
+  return sets.some((s) => s.reps > 0 || (s.durationMinutes ?? 0) > 0 || (s.distanceKm ?? 0) > 0)
 }
 
 /** Lokale tijd geformatteerd voor een `<input type="datetime-local">`. */
@@ -113,6 +140,11 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
     if (!editingSessionDateKey) return []
     return logs.filter((l) => l.id !== editingLogId && new Date(l.date).toISOString().slice(0, 10) === editingSessionDateKey)
   }, [logs, editingSessionDateKey, editingLogId])
+
+  function isCardioExercise(id: string): boolean {
+    return allExercises.find((e) => e.id === id)?.category === 'cardio'
+  }
+  const isCardio = isCardioExercise(exerciseId)
 
   useEffect(() => () => handleRef.current?.stop(), [])
 
@@ -180,7 +212,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
       {
         key: crypto.randomUUID(),
         exerciseId,
-        sets: draftRowsToSets(setRows, bodyweight),
+        sets: draftRowsToSets(setRows, bodyweight, isCardioExercise(exerciseId)),
         date: fromDateTimeLocalValue(logDate).toISOString(),
         rawInput: transcript.trim() || undefined,
         source,
@@ -196,7 +228,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
   /** Slaat op wat nu in het formulier staat (bijwerken als het een bestaande log is,
    * toevoegen als het een nieuwe oefening binnen de bewerk-sessie is). */
   function commitCurrentEntry() {
-    const sets = draftRowsToSets(setRows, bodyweight)
+    const sets = draftRowsToSets(setRows, bodyweight, isCardioExercise(exerciseId))
     const trimmedWorkoutName = workoutName.trim() || undefined
     if (editingLogId) {
       updateLog(editingLogId, {
@@ -205,7 +237,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
         workoutName: trimmedWorkoutName,
         date: fromDateTimeLocalValue(logDate).toISOString(),
       })
-    } else if (sets.some((s) => s.reps > 0)) {
+    } else if (hasLoggableData(sets)) {
       addLog({
         exerciseId,
         date: fromDateTimeLocalValue(logDate).toISOString(),
@@ -232,7 +264,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
   function loadEntryIntoForm(log: LogEntry) {
     setEditingLogId(log.id)
     setExerciseId(log.exerciseId)
-    setBodyweight(log.sets.length > 0 && log.sets.every((s) => s.weight === 0))
+    setBodyweight(!isCardioExercise(log.exerciseId) && log.sets.length > 0 && log.sets.every((s) => s.weight === 0))
     setSetRows(setsToDraftRows(log.sets))
     setLogDate(toDateTimeLocalValue(new Date(log.date)))
     setTranscript('')
@@ -271,8 +303,8 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
 
     // De oefening die nu in het formulier staat alleen meenemen als er echt iets is
     // ingevuld — anders zou een lege/ongebruikte laatste rij ook worden opgeslagen.
-    const currentSets = draftRowsToSets(setRows, bodyweight)
-    if (currentSets.some((s) => s.reps > 0)) {
+    const currentSets = draftRowsToSets(setRows, bodyweight, isCardioExercise(exerciseId))
+    if (hasLoggableData(currentSets)) {
       addLog({
         exerciseId,
         date: fromDateTimeLocalValue(logDate).toISOString(),
@@ -508,10 +540,12 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
           </select>
         </label>
 
-        <label className="mt-3 flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          <input type="checkbox" checked={bodyweight} onChange={(e) => setBodyweight(e.target.checked)} />
-          Eigen lichaamsgewicht
-        </label>
+        {!isCardio && (
+          <label className="mt-3 flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            <input type="checkbox" checked={bodyweight} onChange={(e) => setBodyweight(e.target.checked)} />
+            Eigen lichaamsgewicht
+          </label>
+        )}
 
         <div className="mt-3 flex flex-col gap-2">
           {setRows.map((row, i) => (
@@ -520,34 +554,68 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
                 <span className="w-5 shrink-0 pb-2 text-xs" style={{ color: 'var(--text-muted)' }}>
                   {i + 1}
                 </span>
-                <label className="flex-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  Reps
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={row.reps}
-                    onFocus={(e) => e.target.select()}
-                    onClick={(e) => e.currentTarget.select()}
-                    onChange={(e) => updateSetRow(i, { reps: sanitizeDigits(e.target.value) })}
-                    className="mt-1 w-full rounded-lg px-2 py-1.5 text-sm"
-                    style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                  />
-                </label>
-                <label className="flex-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  Kg
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={row.weight}
-                    disabled={bodyweight}
-                    onFocus={(e) => e.target.select()}
-                    onClick={(e) => e.currentTarget.select()}
-                    onChange={(e) => updateSetRow(i, { weight: sanitizeDecimal(e.target.value) })}
-                    className="mt-1 w-full rounded-lg px-2 py-1.5 text-sm disabled:opacity-40"
-                    style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                  />
-                </label>
+                {isCardio ? (
+                  <>
+                    <label className="flex-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      Duur (min)
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={row.duration}
+                        onFocus={(e) => e.target.select()}
+                        onClick={(e) => e.currentTarget.select()}
+                        onChange={(e) => updateSetRow(i, { duration: sanitizeDigits(e.target.value) })}
+                        className="mt-1 w-full rounded-lg px-2 py-1.5 text-sm"
+                        style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                      />
+                    </label>
+                    <label className="flex-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      Afstand (km)
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={row.distance}
+                        onFocus={(e) => e.target.select()}
+                        onClick={(e) => e.currentTarget.select()}
+                        onChange={(e) => updateSetRow(i, { distance: sanitizeDecimal(e.target.value) })}
+                        className="mt-1 w-full rounded-lg px-2 py-1.5 text-sm"
+                        style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                      />
+                    </label>
+                  </>
+                ) : (
+                  <>
+                    <label className="flex-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      Reps
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={row.reps}
+                        onFocus={(e) => e.target.select()}
+                        onClick={(e) => e.currentTarget.select()}
+                        onChange={(e) => updateSetRow(i, { reps: sanitizeDigits(e.target.value) })}
+                        className="mt-1 w-full rounded-lg px-2 py-1.5 text-sm"
+                        style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                      />
+                    </label>
+                    <label className="flex-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      Kg
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={row.weight}
+                        disabled={bodyweight}
+                        onFocus={(e) => e.target.select()}
+                        onClick={(e) => e.currentTarget.select()}
+                        onChange={(e) => updateSetRow(i, { weight: sanitizeDecimal(e.target.value) })}
+                        className="mt-1 w-full rounded-lg px-2 py-1.5 text-sm disabled:opacity-40"
+                        style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                      />
+                    </label>
+                  </>
+                )}
                 <button
                   type="button"
                   onClick={() => removeSetRow(i)}
@@ -577,7 +645,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
           className="mt-2 w-full rounded-lg py-2 text-xs font-medium"
           style={{ color: 'var(--accent)', border: '1px dashed var(--border)' }}
         >
-          + Set toevoegen
+          {isCardio ? '+ Sessie toevoegen' : '+ Set toevoegen'}
         </button>
 
         <button
