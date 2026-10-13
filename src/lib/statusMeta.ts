@@ -17,9 +17,3 @@ export const STATUS_META: Record<MuscleStatus, { label: string; color: string; d
     description: 'Boven de richtwaarde — let op herstel',
   },
 }
-
-export function statusColorForScore(score: number): string {
-  if (score >= 100) return 'var(--status-good)'
-  if (score >= 50) return 'var(--status-warning)'
-  return 'var(--status-critical)'
-}

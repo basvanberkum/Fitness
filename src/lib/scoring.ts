@@ -153,17 +153,19 @@ export function computeMuscleWeeklyAverage(logs: LogEntry[], days: number, now: 
   })
 }
 
-export function computeOverallScore(scores: MuscleScore[]): number {
-  if (scores.length === 0) return 0
-  const sum = scores.reduce((acc, s) => acc + s.weeklyScore, 0)
-  return Math.round(sum / scores.length)
-}
-
-/** Zelfde als computeOverallScore, maar op basis van het 30-dagen gemiddelde per spiergroep. */
-export function computeOverallLast30dScore(scores: MuscleScore[]): number {
-  if (scores.length === 0) return 0
-  const sum = scores.reduce((acc, s) => acc + s.last30dScore, 0)
-  return Math.round(sum / scores.length)
+/**
+ * Totaal aantal gelogde sets (alle krachtoefeningen samen, ongeacht spiergroep) in de
+ * afgelopen `days` dagen. Cardio-oefeningen tellen hier niet in mee — die hebben hun eigen,
+ * aparte cardio-doelen (zie cardioScoring.ts).
+ */
+export function computeTotalSets(logs: LogEntry[], days: number, now: Date = new Date()): number {
+  const exerciseById = new Map<string, Exercise>(getAllExercises().map((e) => [e.id, e]))
+  return logs.reduce((sum, l) => {
+    if (!withinDays(l.date, days, now)) return sum
+    const exercise = exerciseById.get(l.exerciseId)
+    if (!exercise || exercise.category === 'cardio') return sum
+    return sum + l.sets.length
+  }, 0)
 }
 
 export interface MuscleContribution {

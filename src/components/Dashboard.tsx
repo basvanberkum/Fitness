@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
 import { daysSinceLastBackup, type LogEntry } from '../lib/storage'
 import { computeCardioScores } from '../lib/cardioScoring'
-import { computeMuscleScores, computeOverallLast30dScore, computeOverallScore, generateTips } from '../lib/scoring'
-import { statusColorForScore } from '../lib/statusMeta'
+import { computeMuscleScores, computeTotalSets, generateTips } from '../lib/scoring'
 import { CardioScoreCard } from './CardioScoreCard'
 import { MuscleScoreCard } from './MuscleScoreCard'
 
@@ -10,8 +9,8 @@ export function Dashboard({ logs, onGoToData }: { logs: LogEntry[]; onGoToData: 
   const now = useMemo(() => new Date(), [])
   const scores = useMemo(() => computeMuscleScores(logs, now), [logs, now])
   const cardioScores = useMemo(() => computeCardioScores(logs, now), [logs, now])
-  const overall = useMemo(() => computeOverallScore(scores), [scores])
-  const overallLast30d = useMemo(() => computeOverallLast30dScore(scores), [scores])
+  const setsThisWeek = useMemo(() => computeTotalSets(logs, 7, now), [logs, now])
+  const setsLast30dWeeklyAverage = useMemo(() => Math.round((computeTotalSets(logs, 30, now) / (30 / 7)) * 10) / 10, [logs, now])
   const tips = useMemo(() => generateTips(logs, now), [logs, now])
   const backupAge = useMemo(() => daysSinceLastBackup(now), [now])
   const showBackupReminder = logs.length > 0 && (backupAge === null || backupAge > 30)
@@ -52,30 +51,30 @@ export function Dashboard({ logs, onGoToData }: { logs: LogEntry[]; onGoToData: 
         <div className="grid grid-cols-2 gap-4 text-center">
           <div>
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Weekscore
+              Sets deze week
             </p>
-            <p className="mt-1 text-5xl font-semibold" style={{ color: statusColorForScore(overall) }}>
-              {overall}
+            <p className="mt-1 text-5xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {setsThisWeek}
             </p>
           </div>
           <div>
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Gem. laatste 30d
+              Gem. sets/week (30d)
             </p>
-            <p className="mt-1 text-5xl font-semibold" style={{ color: statusColorForScore(overallLast30d) }}>
-              {overallLast30d}
+            <p className="mt-1 text-5xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {setsLast30dWeeklyAverage}
             </p>
           </div>
         </div>
         <p className="mt-3 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-          Gebaseerd op sets per spiergroep (alle spiergroepen samen) t.o.v. een algemene richtwaarde van 10-20
-          sets/week (bijstelbaar startpunt, geen medisch advies)
+          Totaal aantal sets over alle krachtoefeningen (ongeacht spiergroep) — bekijk hieronder per spiergroep t.o.v.
+          je eigen doel
         </p>
       </section>
 
       {daysSinceLastLog !== null && daysSinceLastLog > 7 && (
         <p className="text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-          Je laatste gelogde training was {daysSinceLastLog} dagen geleden. De score hierboven gaat over recente
+          Je laatste gelogde training was {daysSinceLastLog} dagen geleden. De cijfers hierboven gaan over recente
           training — bekijk "Statistieken" (met "Alles") voor je volledige geschiedenis.
         </p>
       )}
@@ -133,7 +132,7 @@ export function Dashboard({ logs, onGoToData }: { logs: LogEntry[]; onGoToData: 
           Cardio
         </h2>
         <p className="mb-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-          Telt niet mee in de weekscore hierboven — dat is losse voortgang t.o.v. je eigen wekelijkse cardio-doelen.
+          Telt niet mee in de sets hierboven — dat is losse voortgang t.o.v. je eigen wekelijkse cardio-doelen.
         </p>
         <div className="flex flex-col gap-3">
           {cardioScores.map((score) => (

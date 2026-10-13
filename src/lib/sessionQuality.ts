@@ -11,7 +11,6 @@ export interface StrengthSessionQualityScore {
   goalAlignment: number
   recovery: number
   tempo: number
-  tempoBasis: 'duration' | 'unknown'
   exerciseChoice: number
   notes: string[]
 }
@@ -77,9 +76,8 @@ function primaryMuscleOf(exercise: Exercise): MuscleGroup | null {
  * 2. Herstel (25%): zat er voor de getrainde spiergroepen minimaal ~48 uur tussen deze
  *    en de vorige keer dat je die spiergroep trainde? (Veelgebruikte vuistregel, geen
  *    voor jou geverifieerd medisch gegeven.)
- * 3. Tempo/intensiteit (25%): sets per uur, als de sessieduur bekend is (bijv. uit een
- *    CSV-import met start- én eindtijd). Zonder bekende duur valt dit terug op het totaal
- *    aantal sets in de sessie als proxy: <6 onvoldoende, 6-9 zwak, 9-12 ok, 12-15 goed,
+ * 3. Tempo/intensiteit (25%): uitsluitend op basis van het totaal aantal sets in de sessie
+ *    (ongeacht of de sessieduur bekend is): <6 onvoldoende, 6-9 zwak, 9-12 ok, 12-15 goed,
  *    >15 uitstekend.
  * 4. Slimme oefeningkeuze (20%): zat er voor elke getrainde spiergroep minstens één
  *    compound-oefening bij (i.p.v. alleen isolatie), en werd er niet veel tijd besteed
@@ -147,29 +145,14 @@ function computeStrengthSessionQualityScore(session: DayGroup, allLogs: LogEntry
   }
   const recovery = Math.round((recoveryScoreSum / totalWeight) * 10) / 10
 
-  // --- 3. Tempo/intensiteit ---
-  const durations = session.entries.map((e) => e.durationMinutes).filter((d): d is number => !!d && d > 0)
+  // --- 3. Tempo/intensiteit --- uitsluitend op basis van totaal aantal sets in de sessie.
+  const totalSets = session.totalSets
   let tempo: number
-  let tempoBasis: 'duration' | 'unknown'
-  if (durations.length > 0) {
-    const duration = Math.max(...durations)
-    const setsPerHour = session.totalSets / (duration / 60)
-    if (setsPerHour >= 10 && setsPerHour <= 20) tempo = 10
-    else if (setsPerHour > 20) tempo = Math.max(3, 10 - (setsPerHour - 20) * 0.3)
-    else tempo = Math.max(3, 10 - (10 - setsPerHour) * 0.5)
-    tempoBasis = 'duration'
-  } else {
-    // Sessieduur onbekend: val terug op het aantal sets in de sessie als proxy voor
-    // intensiteit, volgens vaste drempels.
-    const totalSets = session.totalSets
-    if (totalSets < 6) tempo = 2 // onvoldoende
-    else if (totalSets < 9) tempo = 4 // zwak
-    else if (totalSets < 12) tempo = 6 // ok
-    else if (totalSets < 15) tempo = 8 // goed
-    else tempo = 10 // uitstekend
-    tempoBasis = 'unknown'
-  }
-  tempo = Math.round(tempo * 10) / 10
+  if (totalSets < 6) tempo = 2 // onvoldoende
+  else if (totalSets < 9) tempo = 4 // zwak
+  else if (totalSets < 12) tempo = 6 // ok
+  else if (totalSets < 15) tempo = 8 // goed
+  else tempo = 10 // uitstekend
 
   // --- 4. Slimme oefeningkeuze ---
   let coveredWeight = 0
@@ -213,16 +196,13 @@ function computeStrengthSessionQualityScore(session: DayGroup, allLogs: LogEntry
   if (goalAlignment >= 8) notes.push('Vooral spiergroepen getraind die nog achterliepen op je doel.')
   else if (goalAlignment <= 4) notes.push('Vooral spiergroepen getraind die al ruim op schema of over je doel zaten.')
   if (recovery <= 5) notes.push('Minder dan ~48u rust sinds de vorige keer voor (een deel van) deze spiergroepen.')
-  if (tempoBasis === 'unknown') {
-    notes.push('Sessieduur onbekend — tempo is daarom geschat op basis van het aantal sets in de sessie (geen CSV-eindtijd bekend).')
-  }
   if (maxDistinctForOneMuscle >= 3) {
     notes.push(`${maxDistinctForOneMuscle} verschillende oefeningen voor dezelfde hoofdspier — mogelijk wat overlappend.`)
   } else if (compoundCoverage < 0.5 && muscles.length > 0) {
     notes.push('Vooral isolatie-oefeningen, geen compound-oefening per getrainde spiergroep — niet per se slecht, wel minder tijdsefficiënt.')
   }
 
-  return { kind: 'strength', overall, goalAlignment, recovery, tempo, tempoBasis, exerciseChoice, notes }
+  return { kind: 'strength', overall, goalAlignment, recovery, tempo, exerciseChoice, notes }
 }
 
 /**
