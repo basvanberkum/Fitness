@@ -5,25 +5,24 @@ export interface CardioTarget {
 }
 
 export const CARDIO_INTENSITY_LABELS: Record<CardioIntensity, string> = {
-  intensive: 'Intensief (hardlopen, fietsen, zwemmen, skateboarden, ...)',
-  light: 'Licht (wandelen)',
+  intensive: 'Intensief (hardlopen, fietsen, zwemmen, skateboarden, ...) — telt mee voor je wekelijkse doel',
+  light: 'Licht (wandelen) — geen apart doel, telt niet mee',
 }
 
 /**
- * Standaard wekelijkse cardio-doelen, zoals door jou aangegeven: 45 minuten intensief
- * sporten en 90 minuten wandelen per week. Net als bij de spiergroep-doelen is dit een
- * startpunt — hieronder zelf aan te passen.
+ * Standaard wekelijks cardio-doel: 45 minuten intensief sporten per week, zoals door jou
+ * aangegeven. Alleen de intensieve cardio heeft een doel — wandelen/lichte cardio houd je
+ * zelf al bij, dus die heeft hier bewust geen eigen streefwaarde.
  */
-export const DEFAULT_CARDIO_TARGETS: Record<CardioIntensity, CardioTarget> = {
-  intensive: { minutesPerWeek: 45 },
-  light: { minutesPerWeek: 90 },
-}
+export const DEFAULT_CARDIO_TARGET: CardioTarget = { minutesPerWeek: 45 }
 
 const STORAGE_KEY = 'fitness-tracker:custom-cardio-targets:v1'
 const EVENT_NAME = 'fitness-tracker:cardio-targets-changed'
 
 export const CARDIO_TARGETS_CHANGED_EVENT = EVENT_NAME
 
+/** Zelfde opslagvorm als toen er nog een doel per intensiteit was — alleen 'intensive'
+ * wordt nog gelezen/geschreven, zodat een eerder ingestelde waarde behouden blijft. */
 type CardioTargetOverrides = Partial<Record<CardioIntensity, CardioTarget>>
 
 function readOverrides(): CardioTargetOverrides {
@@ -42,32 +41,23 @@ function writeOverrides(overrides: CardioTargetOverrides) {
   window.dispatchEvent(new CustomEvent(EVENT_NAME))
 }
 
-/** Standaardwaarden met eventuele eigen aanpassingen erover heen. */
-export function getEffectiveCardioTargets(): Record<CardioIntensity, CardioTarget> {
-  const overrides = readOverrides()
-  const result = {} as Record<CardioIntensity, CardioTarget>
-  for (const intensity of Object.keys(DEFAULT_CARDIO_TARGETS) as CardioIntensity[]) {
-    result[intensity] = overrides[intensity] ?? DEFAULT_CARDIO_TARGETS[intensity]
-  }
-  return result
+/** Standaardwaarde met een eventuele eigen aanpassing erover heen. */
+export function getEffectiveCardioTarget(): CardioTarget {
+  return readOverrides().intensive ?? DEFAULT_CARDIO_TARGET
 }
 
-export function setCardioTarget(intensity: CardioIntensity, target: CardioTarget) {
+export function setCardioTarget(target: CardioTarget) {
   const overrides = readOverrides()
-  overrides[intensity] = target
+  overrides.intensive = target
   writeOverrides(overrides)
 }
 
-export function resetCardioTarget(intensity: CardioIntensity) {
+export function resetCardioTarget() {
   const overrides = readOverrides()
-  delete overrides[intensity]
+  delete overrides.intensive
   writeOverrides(overrides)
 }
 
-export function resetAllCardioTargets() {
-  writeOverrides({})
-}
-
-export function hasCustomCardioTarget(intensity: CardioIntensity): boolean {
-  return intensity in readOverrides()
+export function hasCustomCardioTarget(): boolean {
+  return 'intensive' in readOverrides()
 }

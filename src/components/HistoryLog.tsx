@@ -59,6 +59,17 @@ function ExerciseEntryRow({ entry }: { entry: LogEntry }) {
 function SessionQualityBadge({ group, logs }: { group: DayGroup; logs: LogEntry[] }) {
   // Lazy: alleen berekend voor dagen die daadwerkelijk zichtbaar zijn gerenderd.
   const score = useMemo(() => computeSessionQualityScore(group, logs), [group, logs])
+  if (score.kind === 'untracked') {
+    return (
+      <span
+        className="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
+        style={{ background: 'var(--text-muted)', color: 'white' }}
+        title="Voor wandelen/lichte cardio houden we geen doel bij, dus geen trainingskwaliteit-score"
+      >
+        –
+      </span>
+    )
+  }
   const title =
     score.kind === 'cardio'
       ? 'Inschatting van trainingskwaliteit (bijdrage aan je wekelijkse cardio-doel) — geen gevalideerd advies'
@@ -76,6 +87,20 @@ function SessionQualityBadge({ group, logs }: { group: DayGroup; logs: LogEntry[
 
 function SessionQualityBreakdown({ group, logs }: { group: DayGroup; logs: LogEntry[] }) {
   const score = useMemo(() => computeSessionQualityScore(group, logs), [group, logs])
+  if (score.kind === 'untracked') {
+    return (
+      <div className="rounded-lg p-3 text-xs" style={{ background: 'var(--surface-page)', border: '1px solid var(--border)' }}>
+        <p className="mb-1.5 font-medium" style={{ color: 'var(--text-primary)' }}>
+          Geen trainingskwaliteit-score
+        </p>
+        <ul className="flex flex-col gap-0.5 italic" style={{ color: 'var(--text-muted)' }}>
+          {score.notes.map((n, i) => (
+            <li key={i}>{n}</li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
   return (
     <div className="rounded-lg p-3 text-xs" style={{ background: 'var(--surface-page)', border: '1px solid var(--border)' }}>
       <p className="mb-1.5 font-medium" style={{ color: 'var(--text-primary)' }}>

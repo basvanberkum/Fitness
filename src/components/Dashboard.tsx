@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { daysSinceLastBackup, type LogEntry } from '../lib/storage'
-import { computeCardioScores } from '../lib/cardioScoring'
+import { computeCardioScore } from '../lib/cardioScoring'
 import { computeMuscleScores, computeTotalSets, generateTips } from '../lib/scoring'
 import { CardioScoreCard } from './CardioScoreCard'
 import { MuscleScoreCard } from './MuscleScoreCard'
@@ -8,7 +8,7 @@ import { MuscleScoreCard } from './MuscleScoreCard'
 export function Dashboard({ logs, onGoToData }: { logs: LogEntry[]; onGoToData: () => void }) {
   const now = useMemo(() => new Date(), [])
   const scores = useMemo(() => computeMuscleScores(logs, now), [logs, now])
-  const cardioScores = useMemo(() => computeCardioScores(logs, now), [logs, now])
+  const cardioScore = useMemo(() => computeCardioScore(logs, now), [logs, now])
   const setsThisWeek = useMemo(() => computeTotalSets(logs, 7, now), [logs, now])
   const setsLast30dWeeklyAverage = useMemo(() => Math.round((computeTotalSets(logs, 30, now) / (30 / 7)) * 10) / 10, [logs, now])
   const tips = useMemo(() => generateTips(logs, now), [logs, now])
@@ -132,12 +132,11 @@ export function Dashboard({ logs, onGoToData }: { logs: LogEntry[]; onGoToData: 
           Cardio
         </h2>
         <p className="mb-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-          Telt niet mee in de sets hierboven — dat is losse voortgang t.o.v. je eigen wekelijkse cardio-doelen.
+          Telt niet mee in de sets hierboven — dat is losse voortgang t.o.v. je eigen wekelijkse cardio-doel.
+          Wandelen/lichte cardio heeft bewust geen eigen doel.
         </p>
         <div className="flex flex-col gap-3">
-          {cardioScores.map((score) => (
-            <CardioScoreCard key={score.intensity} score={score} />
-          ))}
+          <CardioScoreCard score={cardioScore} />
         </div>
       </section>
 

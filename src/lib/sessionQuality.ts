@@ -1,5 +1,5 @@
-import { CARDIO_INTENSITY_LABELS, getEffectiveCardioTargets } from './cardioTargets'
-import type { CardioIntensity, Exercise, MuscleGroup } from '../data/exercises'
+import { getEffectiveCardioTarget } from './cardioTargets'
+import type { Exercise, MuscleGroup } from '../data/exercises'
 import { findExercise } from './exerciseCatalog'
 import type { DayGroup } from './history'
 import type { LogEntry } from './storage'
@@ -18,13 +18,18 @@ export interface StrengthSessionQualityScore {
 export interface CardioSessionQualityScore {
   kind: 'cardio'
   overall: number
-  /** De dominante intensiteit in deze sessie (op basis van meeste minuten), voor label-doeleinden. */
-  intensity: CardioIntensity
   cardioGoalContribution: number
   notes: string[]
 }
 
-export type SessionQualityScore = StrengthSessionQualityScore | CardioSessionQualityScore
+/** Sessie die volledig uit lichte cardio (wandelen) bestaat — daar houden we bewust geen
+ * doel voor bij, dus is er ook geen zinnige trainingskwaliteit-score te geven. */
+export interface UntrackedSessionQualityScore {
+  kind: 'untracked'
+  notes: string[]
+}
+
+export type SessionQualityScore = StrengthSessionQualityScore | CardioSessionQualityScore | UntrackedSessionQualityScore
 
 function muscleSetsForEntry(entry: LogEntry): Partial<Record<MuscleGroup, number>> {
   const exercise = findExercise(entry.exerciseId)
@@ -206,72 +211,63 @@ function computeStrengthSessionQualityScore(session: DayGroup, allLogs: LogEntry
 }
 
 /**
- * Score (0-10) voor een sessie die volledig uit cardio-oefeningen bestaat. De vier
+ * Score (0-10) voor een sessie die (deels) uit intensieve cardio-oefeningen bestaat. De vier
  * kracht-criteria (doelbijdrage per spiergroep, 48u-herstel, sets/uur-tempo, compound-keuze)
  * gaan hier niet op — in plaats daarvan telt maar één ding: droeg deze sessie bij aan je nog
- * niet gehaalde wekelijkse cardio-doel (intensief resp. licht/wandelen), of was dat doel deze
- * week al gehaald? Zelfde "nog nodig?"-logica als Doelbijdrage bij kracht, maar dan op
- * cardio-minuten i.p.v. kracht-sets per spiergroep.
+ * niet gehaalde wekelijkse cardio-doel, of was dat doel deze week al gehaald? Zelfde
+ * "nog nodig?"-logica als Doelbijdrage bij kracht, maar dan op cardio-minuten i.p.v.
+ * kracht-sets per spiergroep. Minuten lichte cardio (wandelen) tellen hier niet in mee —
+ * daar houden we bewust geen doel voor bij.
  */
 function computeCardioSessionQualityScore(session: DayGroup, allLogs: LogEntry[]): CardioSessionQualityScore {
-  const targets = getEffectiveCardioTargets()
+  const target = getEffectiveCardioTarget()
   const sessionDate = new Date(Math.min(...session.entries.map((e) => new Date(e.date).getTime())))
   const sevenDaysBefore = new Date(sessionDate.getTime() - 7 * 24 * 60 * 60 * 1000)
   const priorLogs = allLogs.filter((l) => new Date(l.date) < sessionDate)
 
-  const minutesByIntensity: Partial<Record<CardioIntensity, number>> = {}
-  for (const entry of session.entries) {
-    const exercise = findExercise(entry.exerciseId)
-    if (!exercise) continue
-    const intensity = exercise.cardioIntensity ?? 'intensive'
-    const minutes = entry.sets.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0)
-    minutesByIntensity[intensity] = (minutesByIntensity[intensity] ?? 0) + minutes
-  }
+  const preMinutes = priorLogs
+    .filter((l) => new Date(l.date) >= sevenDaysBefore)
+    .reduce((sum, l) => {
+      const ex = findExercise(l.exerciseId)
+      if (!ex || ex.category !== 'cardio' || (ex.cardioIntensity ?? 'intensive') !== 'intensive') return sum
+      return sum + l.sets.reduce((s, set) => s + (set.durationMinutes ?? 0), 0)
+    }, 0)
 
-  const totalMinutes = Object.values(minutesByIntensity).reduce((sum: number, m) => sum + (m ?? 0), 0) || 1
+  let cardioGoalContribution: number
+  if (preMinutes >= target.minutesPerWeek * 1.5) cardioGoalContribution = 2
+  else if (preMinutes >= target.minutesPerWeek) cardioGoalContribution = 6
+  else cardioGoalContribution = 10
 
-  let scoreSum = 0
-  let dominantIntensity: CardioIntensity = 'intensive'
-  let dominantMinutes = -1
-  for (const [intensity, minutes] of Object.entries(minutesByIntensity) as [CardioIntensity, number][]) {
-    if (minutes > dominantMinutes) {
-      dominantMinutes = minutes
-      dominantIntensity = intensity
-    }
-    const target = targets[intensity]
-    const preMinutes = priorLogs
-      .filter((l) => new Date(l.date) >= sevenDaysBefore)
-      .reduce((sum, l) => {
-        const ex = findExercise(l.exerciseId)
-        if (!ex || (ex.cardioIntensity ?? 'intensive') !== intensity || ex.category !== 'cardio') return sum
-        return sum + l.sets.reduce((s, set) => s + (set.durationMinutes ?? 0), 0)
-      }, 0)
-    let subScore: number
-    if (preMinutes >= target.minutesPerWeek * 1.5) subScore = 2
-    else if (preMinutes >= target.minutesPerWeek) subScore = 6
-    else subScore = 10
-    scoreSum += subScore * minutes
-  }
-  const cardioGoalContribution = Math.round((scoreSum / totalMinutes) * 10) / 10
   const overall = cardioGoalContribution
 
   const notes: string[] = []
-  const intensityLabel = CARDIO_INTENSITY_LABELS[dominantIntensity]
   if (cardioGoalContribution >= 8) {
-    notes.push(`Je wekelijkse cardio-doel voor ${intensityLabel.toLowerCase()} was nog niet gehaald — deze sessie hielp daarbij.`)
+    notes.push('Je wekelijkse cardio-doel was nog niet gehaald — deze sessie hielp daarbij.')
   } else if (cardioGoalContribution <= 4) {
-    notes.push(`Je wekelijkse cardio-doel voor ${intensityLabel.toLowerCase()} was al gehaald — nog steeds goed voor je conditie, maar minder noodzakelijk voor dit doel.`)
+    notes.push('Je wekelijkse cardio-doel was al gehaald — nog steeds goed voor je conditie, maar minder noodzakelijk voor dit doel.')
   }
   notes.push('Dit is een cardio-sessie: hier gelden andere criteria dan bij kracht training (geen doelbijdrage per spiergroep, herstel, tempo of oefeningkeuze).')
 
-  return { kind: 'cardio', overall, intensity: dominantIntensity, cardioGoalContribution, notes }
+  return { kind: 'cardio', overall, cardioGoalContribution, notes }
 }
 
 /** Kiest op basis van de oefeningen in de sessie welk scoremodel van toepassing is. */
 export function computeSessionQualityScore(session: DayGroup, allLogs: LogEntry[]): SessionQualityScore {
   const allCardio =
     session.entries.length > 0 && session.entries.every((e) => findExercise(e.exerciseId)?.category === 'cardio')
-  if (allCardio) return computeCardioSessionQualityScore(session, allLogs)
+  if (allCardio) {
+    const hasIntensiveMinutes = session.entries.some((e) => {
+      const ex = findExercise(e.exerciseId)
+      return (ex?.cardioIntensity ?? 'intensive') === 'intensive' && e.sets.some((s) => (s.durationMinutes ?? 0) > 0)
+    })
+    if (!hasIntensiveMinutes) {
+      return {
+        kind: 'untracked',
+        notes: ['Voor wandelen/lichte cardio houden we bewust geen wekelijks doel bij — deze sessie krijgt daarom geen trainingskwaliteit-score.'],
+      }
+    }
+    return computeCardioSessionQualityScore(session, allLogs)
+  }
   return computeStrengthSessionQualityScore(session, allLogs)
 }
 
