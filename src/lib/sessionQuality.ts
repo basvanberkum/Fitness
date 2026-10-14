@@ -82,8 +82,8 @@ function primaryMuscleOf(exercise: Exercise): MuscleGroup | null {
  *    en de vorige keer dat je die spiergroep trainde? (Veelgebruikte vuistregel, geen
  *    voor jou geverifieerd medisch gegeven.)
  * 3. Tempo/intensiteit (25%): uitsluitend op basis van het totaal aantal sets in de sessie
- *    (ongeacht of de sessieduur bekend is): <6 onvoldoende, 6-9 zwak, 9-12 ok, 12-15 goed,
- *    >15 uitstekend.
+ *    (ongeacht of de sessieduur bekend is): <3 → 3, 3-6 → 5, 7-9 → 7, 10-12 → 8, 13-15 → 9,
+ *    ≥16 → 10.
  * 4. Slimme oefeningkeuze (20%): zat er voor elke getrainde spiergroep minstens één
  *    compound-oefening bij (i.p.v. alleen isolatie), en werd er niet veel tijd besteed
  *    aan meerdere bijna-identieke oefeningen voor dezelfde spier? Dit is verreweg de
@@ -153,11 +153,12 @@ function computeStrengthSessionQualityScore(session: DayGroup, allLogs: LogEntry
   // --- 3. Tempo/intensiteit --- uitsluitend op basis van totaal aantal sets in de sessie.
   const totalSets = session.totalSets
   let tempo: number
-  if (totalSets < 6) tempo = 2 // onvoldoende
-  else if (totalSets < 9) tempo = 4 // zwak
-  else if (totalSets < 12) tempo = 6 // ok
-  else if (totalSets < 15) tempo = 8 // goed
-  else tempo = 10 // uitstekend
+  if (totalSets < 3) tempo = 3
+  else if (totalSets <= 6) tempo = 5
+  else if (totalSets <= 9) tempo = 7
+  else if (totalSets <= 12) tempo = 8
+  else if (totalSets <= 15) tempo = 9
+  else tempo = 10 // 16+
 
   // --- 4. Slimme oefeningkeuze ---
   let coveredWeight = 0
