@@ -694,11 +694,13 @@ export const EXERCISES: Exercise[] = [
     name: 'Skateboarden',
     category: 'cardio',
     // Telt — in tegenstelling tot de meeste cardio hier — ook mee voor een aantal
-    // spiergroepen (balans/stabilisatie + dynamische beenbelasting, bijv. bij pumpen en
-    // tricks). Dit zijn eigen, niet-wetenschappelijke inschattingen (secundair/indirect
-    // niveau, dus < 1 — net als bij een secundaire spier bij een krachtoefening), geen
-    // ChatGPT-tabel (die ontbrak bij het verzoek) — pas gerust aan als dit niet klopt.
-    muscles: { core: 0.6, calves: 0.5, quads: 0.5, glutes: 0.4, hamstrings: 0.3 },
+    // spiergroepen (dynamische beenbelasting bij pumpen/tricks). Waarden = het midden van
+    // de door jou aangeleverde tabel (equivalent hypertrofievolume per uur skateboarden):
+    // quads 1.0-1.5, glutes 0.75-1.25, hamstrings 0.25-0.5, kuiten ~1-1.5 sets/uur. Core
+    // zat niet in die tabel, dus hier bewust niet meegenomen — laat het weten als je daar
+    // ook een getal voor hebt. Zie effectiveSetCount() in muscleSetCount.ts voor hoe duur
+    // naar sets wordt omgerekend.
+    muscles: { quads: 1.25, glutes: 1, calves: 1.25, hamstrings: 0.375 },
     aliases: ['skateboarden', 'skaten op skateboard', 'skateboarding'],
     cardioIntensity: 'intensive',
   },
