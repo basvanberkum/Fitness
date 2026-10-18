@@ -90,7 +90,17 @@ export function ExerciseDetail({
         </h1>
         <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
           {isCardio
-            ? 'Tijd en/of afstand'
+            ? [
+                'Tijd en/of afstand',
+                Object.keys(exercise.muscles).length > 0
+                  ? Object.entries(exercise.muscles)
+                      .sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))
+                      .map(([m]) => MUSCLE_LABELS[m as MuscleGroup])
+                      .join(', ')
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')
             : Object.keys(exercise.muscles)
                 .map((m) => MUSCLE_LABELS[m as MuscleGroup])
                 .join(', ')}

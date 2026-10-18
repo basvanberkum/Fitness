@@ -73,7 +73,8 @@ function draftRowsToSets(rows: DraftSetRow[], isBodyweight: boolean, isCardio: b
   }
   return rows.map((r) => ({
     reps: Math.max(0, Math.round(Number(r.reps) || 0)),
-    weight: isBodyweight ? 0 : Math.max(0, Number(r.weight) || 0),
+    weight: Math.max(0, Number(r.weight) || 0),
+    bodyweight: isBodyweight || undefined,
     note: r.note?.trim() || undefined,
   }))
 }
@@ -264,7 +265,9 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
   function loadEntryIntoForm(log: LogEntry) {
     setEditingLogId(log.id)
     setExerciseId(log.exerciseId)
-    setBodyweight(!isCardioExercise(log.exerciseId) && log.sets.length > 0 && log.sets.every((s) => s.weight === 0))
+    setBodyweight(
+      !isCardioExercise(log.exerciseId) && log.sets.length > 0 && log.sets.every((s) => s.bodyweight || s.weight === 0),
+    )
     setSetRows(setsToDraftRows(log.sets))
     setLogDate(toDateTimeLocalValue(new Date(log.date)))
     setTranscript('')
@@ -542,9 +545,24 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
 
         {!isCardio && (
           <label className="mt-3 flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-            <input type="checkbox" checked={bodyweight} onChange={(e) => setBodyweight(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={bodyweight}
+              onChange={(e) => {
+                const checked = e.target.checked
+                setBodyweight(checked)
+                // Bij het aanvinken niet het laatst ingevulde (vaak nog "20") gewicht laten
+                // staan — dat zou anders ongemerkt als extra gewicht worden opgeslagen.
+                if (checked) setSetRows((rows) => rows.map((r) => ({ ...r, weight: '0' })))
+              }}
+            />
             Eigen lichaamsgewicht
           </label>
+        )}
+        {!isCardio && bodyweight && (
+          <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+            Vul bij "Extra kg" alleen iets in als je er gewicht bij droeg (bijv. een gewichtsvest of -ketting).
+          </p>
         )}
 
         <div className="mt-3 flex flex-col gap-2">
@@ -601,16 +619,15 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
                       />
                     </label>
                     <label className="flex-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      Kg
+                      {bodyweight ? 'Extra kg' : 'Kg'}
                       <input
                         type="text"
                         inputMode="decimal"
                         value={row.weight}
-                        disabled={bodyweight}
                         onFocus={(e) => e.target.select()}
                         onClick={(e) => e.currentTarget.select()}
                         onChange={(e) => updateSetRow(i, { weight: sanitizeDecimal(e.target.value) })}
-                        className="mt-1 w-full rounded-lg px-2 py-1.5 text-sm disabled:opacity-40"
+                        className="mt-1 w-full rounded-lg px-2 py-1.5 text-sm"
                         style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
                       />
                     </label>

@@ -24,9 +24,11 @@ export function summarizeSets(sets: SetEntry[]): string {
   }
 
   const [first] = sets
-  const uniform = sets.every((s) => s.reps === first.reps && s.weight === first.weight)
+  const uniform = sets.every((s) => s.reps === first.reps && s.weight === first.weight && !!s.bodyweight === !!first.bodyweight)
   if (!uniform) return label
 
-  const weightPart = first.weight > 0 ? ` × ${first.weight}kg` : ' (eigen gewicht)'
+  let weightPart: string
+  if (first.bodyweight) weightPart = first.weight > 0 ? ` (eigen gewicht + ${first.weight}kg)` : ' (eigen gewicht)'
+  else weightPart = first.weight > 0 ? ` × ${first.weight}kg` : ' (eigen gewicht)'
   return `${label} × ${first.reps} reps${weightPart}`
 }

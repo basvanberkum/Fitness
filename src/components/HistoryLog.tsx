@@ -45,7 +45,15 @@ function ExerciseEntryRow({ entry }: { entry: LogEntry }) {
               <span>
                 {isCardioSet
                   ? `Sessie ${i + 1}: ${cardioParts.join(' · ')}`
-                  : `Set ${i + 1}: ${s.reps} reps${s.weight ? ` × ${s.weight} kg` : ' (eigen gewicht)'}`}
+                  : `Set ${i + 1}: ${s.reps} reps${
+                      s.bodyweight
+                        ? s.weight > 0
+                          ? ` (eigen gewicht + ${s.weight} kg)`
+                          : ' (eigen gewicht)'
+                        : s.weight
+                          ? ` × ${s.weight} kg`
+                          : ' (eigen gewicht)'
+                    }`}
               </span>
               {s.note && <span className="italic" style={{ color: 'var(--text-muted)' }}>{s.note}</span>}
             </li>

@@ -693,7 +693,12 @@ export const EXERCISES: Exercise[] = [
     id: 'skateboarding',
     name: 'Skateboarden',
     category: 'cardio',
-    muscles: {},
+    // Telt — in tegenstelling tot de meeste cardio hier — ook mee voor een aantal
+    // spiergroepen (balans/stabilisatie + dynamische beenbelasting, bijv. bij pumpen en
+    // tricks). Dit zijn eigen, niet-wetenschappelijke inschattingen (secundair/indirect
+    // niveau, dus < 1 — net als bij een secundaire spier bij een krachtoefening), geen
+    // ChatGPT-tabel (die ontbrak bij het verzoek) — pas gerust aan als dit niet klopt.
+    muscles: { core: 0.6, calves: 0.5, quads: 0.5, glutes: 0.4, hamstrings: 0.3 },
     aliases: ['skateboarden', 'skaten op skateboard', 'skateboarding'],
     cardioIntensity: 'intensive',
   },

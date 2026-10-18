@@ -1,5 +1,6 @@
 import { MUSCLE_LABELS, type Exercise, type MuscleGroup } from '../data/exercises'
 import { getAllExercises } from './exerciseCatalog'
+import { effectiveSetCount } from './muscleSetCount'
 import type { LogEntry } from './storage'
 import { getEffectiveTargets, type MuscleTarget } from './targets'
 
@@ -39,7 +40,7 @@ function weightedSetsByMuscle(
     if (!withinDays(log.date, days, now)) continue
     const exercise = exerciseById.get(log.exerciseId)
     if (!exercise) continue
-    const setCount = log.sets.length
+    const setCount = effectiveSetCount(log, exercise)
     for (const [muscle, weight] of Object.entries(exercise.muscles) as [MuscleGroup, number][]) {
       totals[muscle] += setCount * weight
     }
@@ -199,12 +200,13 @@ export function computeMuscleContributions(
     const weight = exercise?.muscles[muscle] ?? 0
     if (!exercise || weight <= 0) continue
 
+    const setCount = effectiveSetCount(log, exercise)
     const existing = byExercise.get(log.exerciseId)
     if (existing) {
-      existing.totalSets += log.sets.length
+      existing.totalSets += setCount
       if (new Date(log.date) > new Date(existing.lastDate)) existing.lastDate = log.date
     } else {
-      byExercise.set(log.exerciseId, { weight, totalSets: log.sets.length, lastDate: log.date })
+      byExercise.set(log.exerciseId, { weight, totalSets: setCount, lastDate: log.date })
     }
   }
 
@@ -213,7 +215,7 @@ export function computeMuscleContributions(
       exerciseId,
       exerciseName: exerciseById.get(exerciseId)?.name ?? exerciseId,
       weight: v.weight,
-      totalSets: v.totalSets,
+      totalSets: Math.round(v.totalSets * 10) / 10,
       weightedSets: Math.round(v.totalSets * v.weight * 10) / 10,
       lastDate: v.lastDate,
     }))

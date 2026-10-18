@@ -6,6 +6,9 @@ export interface SetEntry {
   durationMinutes?: number
   /** Voor cardio-oefeningen: afstand in km (i.p.v. reps/gewicht) */
   distanceKm?: number
+  /** Eigen lichaamsgewicht gebruikt, eventueel nog met `weight` aan extra gewicht erbovenop
+   * (bijv. een gewichtsvest of -ketting bij push-ups of pull-ups). */
+  bodyweight?: boolean
 }
 
 export interface LogEntry {

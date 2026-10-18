@@ -2,6 +2,7 @@ import { getEffectiveCardioTarget } from './cardioTargets'
 import type { Exercise, MuscleGroup } from '../data/exercises'
 import { findExercise } from './exerciseCatalog'
 import type { DayGroup } from './history'
+import { effectiveSetCount } from './muscleSetCount'
 import type { LogEntry } from './storage'
 import { getEffectiveTargets } from './targets'
 
@@ -34,7 +35,7 @@ export type SessionQualityScore = StrengthSessionQualityScore | CardioSessionQua
 function muscleSetsForEntry(entry: LogEntry): Partial<Record<MuscleGroup, number>> {
   const exercise = findExercise(entry.exerciseId)
   if (!exercise) return {}
-  const setCount = entry.sets.length
+  const setCount = effectiveSetCount(entry, exercise)
   const result: Partial<Record<MuscleGroup, number>> = {}
   for (const [muscle, weight] of Object.entries(exercise.muscles) as [MuscleGroup, number][]) {
     result[muscle] = (result[muscle] ?? 0) + setCount * weight
@@ -116,8 +117,9 @@ function computeStrengthSessionQualityScore(session: DayGroup, allLogs: LogEntry
       .filter((l) => new Date(l.date) >= sevenDaysBefore)
       .reduce((sum, l) => {
         const ex = findExercise(l.exerciseId)
-        const w = ex?.muscles[muscle] ?? 0
-        return sum + l.sets.length * w
+        if (!ex) return sum
+        const w = ex.muscles[muscle] ?? 0
+        return sum + effectiveSetCount(l, ex) * w
       }, 0)
     const target = targets[muscle]
     let subScore: number
