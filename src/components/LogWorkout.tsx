@@ -3,6 +3,7 @@ import { CATEGORY_LABELS, type ExerciseCategory } from '../data/exercises'
 import { findExercise } from '../lib/exerciseCatalog'
 import { addLog, deleteLog, getRecentWorkoutNames, updateLog, type LogEntry, type SetEntry } from '../lib/storage'
 import { summarizeSets } from '../lib/setSummary'
+import { PreviousPerformance } from './PreviousPerformance'
 import { useAllExercises } from '../lib/useAllExercises'
 import {
   isSpeechRecognitionSupported,
@@ -542,6 +543,7 @@ export function LogWorkout({ logs }: { logs: LogEntry[] }) {
             ))}
           </select>
         </label>
+        {!isCardio && <PreviousPerformance logs={logs} exerciseId={exerciseId} excludeLogId={editingLogId} />}
 
         {!isCardio && (
           <label className="mt-3 flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>

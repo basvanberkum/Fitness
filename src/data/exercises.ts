@@ -468,7 +468,16 @@ export const EXERCISES: Exercise[] = [
     name: 'Home Rope Cable Curl',
     category: 'pull',
     muscles: { biceps: 1 },
-    aliases: ['home rope cable curl', 'home straight cable curl'],
+    aliases: ['home rope cable curl'],
+  },
+  {
+    // Aparte oefening (i.p.v. een alias van de rope-variant): met een rechte stang én
+    // de thuis-kabel is de weerstand niet vergelijkbaar met de rope of de sportschool-kabel.
+    id: 'home-straight-cable-curl',
+    name: 'Home Straight Bar Cable Curl',
+    category: 'pull',
+    muscles: { biceps: 1 },
+    aliases: ['home straight cable curl', 'home straight bar cable curl', 'home cable curl straight bar'],
   },
 
   // ---------- LEGS ----------

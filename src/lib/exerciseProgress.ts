@@ -1,5 +1,5 @@
 import { bucketKeyFor, labelFor, type Granularity } from './chartData'
-import type { LogEntry } from './storage'
+import type { LogEntry, SetEntry } from './storage'
 
 export type ProgressMetric = 'e1rm' | 'maxWeight' | 'volume' | 'cardioDuration' | 'cardioDistance'
 
@@ -150,4 +150,64 @@ export function lastPerformedSummary(logs: LogEntry[], exerciseId: string): Last
     durationMinutes: Math.round(latest.sets.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0)),
     distanceKm: Math.round(latest.sets.reduce((sum, s) => sum + (s.distanceKm ?? 0), 0) * 100) / 100,
   }
+}
+
+export interface ExerciseRecordEntry {
+  date: string
+  sets: SetEntry[]
+}
+
+export interface ExerciseRecords {
+  /** De meest recente keer dat je deze oefening deed */
+  last: ExerciseRecordEntry
+  /** De sessie met het hoogste totale volume (reps × kg); bij gelijk volume (bijv. allemaal
+   * eigen lichaamsgewicht zonder extra kg) telt het hoogste totaal aantal reps. */
+  mostVolume: ExerciseRecordEntry & { volume: number; totalReps: number }
+  /** De zwaarste losse set ooit; bij gelijk gewicht telt de set met de meeste reps. */
+  heaviestSet: { date: string; set: SetEntry }
+}
+
+/**
+ * Eerdere prestaties voor één krachtoefening, om tijdens het loggen te zien wat je moet
+ * evenaren of verbeteren. `excludeLogId` sluit een log uit (bijv. de log die je nu bewerkt).
+ */
+export function computeExerciseRecords(
+  logs: LogEntry[],
+  exerciseId: string,
+  excludeLogId?: string | null,
+): ExerciseRecords | null {
+  let last: LogEntry | null = null
+  let mostVolume: ExerciseRecords['mostVolume'] | null = null
+  let heaviestSet: ExerciseRecords['heaviestSet'] | null = null
+
+  for (const log of logs) {
+    if (log.exerciseId !== exerciseId || log.id === excludeLogId) continue
+    const sets = log.sets.filter((s) => s.reps > 0)
+    if (sets.length === 0) continue
+
+    if (!last || new Date(log.date).getTime() > new Date(last.date).getTime()) last = log
+
+    const volume = sets.reduce((sum, s) => sum + s.reps * s.weight, 0)
+    const totalReps = sets.reduce((sum, s) => sum + s.reps, 0)
+    if (
+      !mostVolume ||
+      volume > mostVolume.volume ||
+      (volume === mostVolume.volume && totalReps > mostVolume.totalReps)
+    ) {
+      mostVolume = { date: log.date, sets, volume: Math.round(volume * 10) / 10, totalReps }
+    }
+
+    for (const s of sets) {
+      if (
+        !heaviestSet ||
+        s.weight > heaviestSet.set.weight ||
+        (s.weight === heaviestSet.set.weight && s.reps > heaviestSet.set.reps)
+      ) {
+        heaviestSet = { date: log.date, set: s }
+      }
+    }
+  }
+
+  if (!last || !mostVolume || !heaviestSet) return null
+  return { last: { date: last.date, sets: last.sets.filter((s) => s.reps > 0) }, mostVolume, heaviestSet }
 }
