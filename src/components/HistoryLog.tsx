@@ -80,7 +80,7 @@ function SessionQualityBadge({ group, logs }: { group: DayGroup; logs: LogEntry[
   }
   const title =
     score.kind === 'cardio'
-      ? 'Inschatting van trainingskwaliteit (bijdrage aan je wekelijkse cardio-doel) — geen gevalideerd advies'
+      ? 'Cardio-score op basis van duur (10 min = 4, 20 min = 6, 30 min = 8, 40+ min = 10)'
       : 'Inschatting van trainingskwaliteit (doelbijdrage, herstel, tempo, oefeningkeuze) — geen gevalideerd advies'
   return (
     <span
@@ -116,7 +116,7 @@ function SessionQualityBreakdown({ group, logs }: { group: DayGroup; logs: LogEn
       </p>
       <ul className="flex flex-col gap-0.5" style={{ color: 'var(--text-secondary)' }}>
         {score.kind === 'cardio' ? (
-          <li>Bijdrage aan wekelijks cardio-doel: {score.cardioGoalContribution.toFixed(1)} / 10</li>
+          <li>Duur intensieve cardio: {score.durationMinutes} min</li>
         ) : (
           <>
             <li>Doelbijdrage (30%): {score.goalAlignment.toFixed(1)} / 10</li>

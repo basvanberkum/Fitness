@@ -1,4 +1,3 @@
-import { getEffectiveCardioTarget } from './cardioTargets'
 import type { Exercise, MuscleGroup } from '../data/exercises'
 import { findExercise } from './exerciseCatalog'
 import type { DayGroup } from './history'
@@ -19,7 +18,8 @@ export interface StrengthSessionQualityScore {
 export interface CardioSessionQualityScore {
   kind: 'cardio'
   overall: number
-  cardioGoalContribution: number
+  /** Totaal minuten intensieve cardio in deze sessie */
+  durationMinutes: number
   notes: string[]
 }
 
@@ -213,45 +213,47 @@ function computeStrengthSessionQualityScore(session: DayGroup, allLogs: LogEntry
   return { kind: 'strength', overall, goalAlignment, recovery, tempo, exerciseChoice, notes }
 }
 
-/**
- * Score (0-10) voor een sessie die (deels) uit intensieve cardio-oefeningen bestaat. De vier
- * kracht-criteria (doelbijdrage per spiergroep, 48u-herstel, sets/uur-tempo, compound-keuze)
- * gaan hier niet op — in plaats daarvan telt maar één ding: droeg deze sessie bij aan je nog
- * niet gehaalde wekelijkse cardio-doel, of was dat doel deze week al gehaald? Zelfde
- * "nog nodig?"-logica als Doelbijdrage bij kracht, maar dan op cardio-minuten i.p.v.
- * kracht-sets per spiergroep. Minuten lichte cardio (wandelen) tellen hier niet in mee —
- * daar houden we bewust geen doel voor bij.
- */
-function computeCardioSessionQualityScore(session: DayGroup, allLogs: LogEntry[]): CardioSessionQualityScore {
-  const target = getEffectiveCardioTarget()
-  const sessionDate = new Date(Math.min(...session.entries.map((e) => new Date(e.date).getTime())))
-  const sevenDaysBefore = new Date(sessionDate.getTime() - 7 * 24 * 60 * 60 * 1000)
-  const priorLogs = allLogs.filter((l) => new Date(l.date) < sessionDate)
+/** Ankerpunten voor de cardio-score: [minuten, score]. Tussen twee punten wordt lineair
+ * geïnterpoleerd (15 min = 5); vanaf het laatste punt blijft de score 10. */
+const CARDIO_DURATION_SCORE_POINTS: [number, number][] = [
+  [0, 0],
+  [10, 4],
+  [20, 6],
+  [30, 8],
+  [40, 10],
+]
 
-  const preMinutes = priorLogs
-    .filter((l) => new Date(l.date) >= sevenDaysBefore)
-    .reduce((sum, l) => {
-      const ex = findExercise(l.exerciseId)
-      if (!ex || ex.category !== 'cardio' || (ex.cardioIntensity ?? 'intensive') !== 'intensive') return sum
-      return sum + l.sets.reduce((s, set) => s + (set.durationMinutes ?? 0), 0)
-    }, 0)
-
-  let cardioGoalContribution: number
-  if (preMinutes >= target.minutesPerWeek * 1.5) cardioGoalContribution = 2
-  else if (preMinutes >= target.minutesPerWeek) cardioGoalContribution = 6
-  else cardioGoalContribution = 10
-
-  const overall = cardioGoalContribution
-
-  const notes: string[] = []
-  if (cardioGoalContribution >= 8) {
-    notes.push('Je wekelijkse cardio-doel was nog niet gehaald — deze sessie hielp daarbij.')
-  } else if (cardioGoalContribution <= 4) {
-    notes.push('Je wekelijkse cardio-doel was al gehaald — nog steeds goed voor je conditie, maar minder noodzakelijk voor dit doel.')
+export function cardioDurationScore(minutes: number): number {
+  const points = CARDIO_DURATION_SCORE_POINTS
+  if (minutes >= points[points.length - 1][0]) return points[points.length - 1][1]
+  for (let i = 1; i < points.length; i++) {
+    const [m1, s1] = points[i]
+    if (minutes <= m1) {
+      const [m0, s0] = points[i - 1]
+      return Math.round((s0 + ((Math.max(0, minutes) - m0) / (m1 - m0)) * (s1 - s0)) * 10) / 10
+    }
   }
-  notes.push('Dit is een cardio-sessie: hier gelden andere criteria dan bij kracht training (geen doelbijdrage per spiergroep, herstel, tempo of oefeningkeuze).')
+  return 0
+}
 
-  return { kind: 'cardio', overall, cardioGoalContribution, notes }
+/**
+ * Score (0-10) voor een sessie die volledig uit cardio bestaat, puur op basis van de duur
+ * van de intensieve cardio in die sessie (10 min = 4, 20 min = 6, 30 min = 8, 40+ min = 10).
+ * Minuten lichte cardio (wandelen) tellen hier niet in mee.
+ */
+function computeCardioSessionQualityScore(session: DayGroup): CardioSessionQualityScore {
+  const durationMinutes = session.entries.reduce((sum, e) => {
+    const ex = findExercise(e.exerciseId)
+    if (!ex || ex.category !== 'cardio' || (ex.cardioIntensity ?? 'intensive') !== 'intensive') return sum
+    return sum + e.sets.reduce((s, set) => s + (set.durationMinutes ?? 0), 0)
+  }, 0)
+  const overall = cardioDurationScore(durationMinutes)
+
+  const notes = [
+    'Cardio-score op basis van duur: 10 min = 4, 20 min = 6, 30 min = 8, 40 min of meer = 10.',
+  ]
+
+  return { kind: 'cardio', overall, durationMinutes: Math.round(durationMinutes), notes }
 }
 
 /** Kiest op basis van de oefeningen in de sessie welk scoremodel van toepassing is. */
@@ -269,7 +271,7 @@ export function computeSessionQualityScore(session: DayGroup, allLogs: LogEntry[
         notes: ['Voor wandelen/lichte cardio houden we bewust geen wekelijks doel bij — deze sessie krijgt daarom geen trainingskwaliteit-score.'],
       }
     }
-    return computeCardioSessionQualityScore(session, allLogs)
+    return computeCardioSessionQualityScore(session)
   }
   return computeStrengthSessionQualityScore(session, allLogs)
 }
