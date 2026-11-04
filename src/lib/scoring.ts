@@ -3,6 +3,7 @@ import { getAllExercises } from './exerciseCatalog'
 import { effectiveSetCount } from './muscleSetCount'
 import type { LogEntry } from './storage'
 import { getEffectiveTargets, type MuscleTarget } from './targets'
+import { withinDays } from './dateWindow'
 
 export type MuscleStatus = 'low' | 'good' | 'high'
 export type { MuscleTarget } from './targets'
@@ -17,12 +18,6 @@ export interface MuscleScore {
   last30dScore: number
   weeklyStatus: MuscleStatus
   last30dStatus: MuscleStatus
-}
-
-function withinDays(dateIso: string, days: number, now: Date): boolean {
-  const date = new Date(dateIso)
-  const diffMs = now.getTime() - date.getTime()
-  return diffMs >= 0 && diffMs <= days * 24 * 60 * 60 * 1000
 }
 
 /** Gewogen setcount per spiergroep voor logs binnen de laatste `days` dagen. */

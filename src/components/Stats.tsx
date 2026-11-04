@@ -14,11 +14,7 @@ import { useAllExercises } from '../lib/useAllExercises'
 import type { BodyWeightEntry, LogEntry } from '../lib/storage'
 import { CardioTargetSettings } from './CardioTargetSettings'
 import { TargetSettings } from './TargetSettings'
-
-function withinDays(dateIso: string, days: number, now: Date): boolean {
-  const diff = now.getTime() - new Date(dateIso).getTime()
-  return diff >= 0 && diff <= days * 24 * 60 * 60 * 1000
-}
+import { withinDays } from '../lib/dateWindow'
 
 type RangeKey = '7d' | '30d' | '90d' | 'all'
 

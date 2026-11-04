@@ -2,6 +2,7 @@ import { getEffectiveCardioTarget, type CardioTarget } from './cardioTargets'
 import type { Exercise } from '../data/exercises'
 import { getAllExercises } from './exerciseCatalog'
 import type { LogEntry } from './storage'
+import { withinDays } from './dateWindow'
 
 export type CardioStatus = 'low' | 'good'
 
@@ -12,11 +13,6 @@ export interface CardioScore {
   target: CardioTarget
   weeklyStatus: CardioStatus
   last30dStatus: CardioStatus
-}
-
-function withinDays(dateIso: string, days: number, now: Date): boolean {
-  const diffMs = now.getTime() - new Date(dateIso).getTime()
-  return diffMs >= 0 && diffMs <= days * 24 * 60 * 60 * 1000
 }
 
 /** Totaal minuten intensieve cardio (licht/wandelen telt hier niet in mee — daar houden we

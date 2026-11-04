@@ -1,6 +1,7 @@
 import type { Exercise, MuscleGroup } from '../data/exercises'
 import { findExercise } from './exerciseCatalog'
 import type { DayGroup } from './history'
+import { startOfDayWindow } from './dateWindow'
 import { effectiveSetCount } from './muscleSetCount'
 import type { LogEntry } from './storage'
 import { getEffectiveTargets } from './targets'
@@ -112,7 +113,8 @@ function computeStrengthSessionQualityScore(session: DayGroup, allLogs: LogEntry
   let goalScoreSum = 0
   for (const muscle of muscles) {
     const weight = sessionMuscleSets[muscle] ?? 0
-    const sevenDaysBefore = new Date(sessionDate.getTime() - 7 * 24 * 60 * 60 * 1000)
+    // Zelfde venster als de weekscore: de sessiedag zelf (vóór de sessie) + 6 dagen terug.
+    const sevenDaysBefore = startOfDayWindow(7, sessionDate)
     const preSets = priorLogs
       .filter((l) => new Date(l.date) >= sevenDaysBefore)
       .reduce((sum, l) => {
