@@ -293,11 +293,12 @@ export const EXERCISES: Exercise[] = [
   },
   {
     // Ondanks "push" in de naam een pull-oefening: gestrekte armen naar beneden trekken
-    // (straight-arm pulldown), vooral latissimus, zonder noemenswaardige biceps-inzet.
+    // (straight-arm pulldown), vooral latissimus, met wat triceps-inzet (lange kop helpt de
+    // arm naar beneden te trekken) en zonder noemenswaardige biceps-inzet.
     id: 'standing-lat-pushdown',
     name: 'Standing Lat Pushdown',
     category: 'pull',
-    muscles: { back: 1 },
+    muscles: { back: 1, triceps: 0.3 },
     aliases: ['standing lat pushdown', 'standing lat push down', 'straight arm pulldown', 'straight arm pull down'],
   },
   {
@@ -305,7 +306,7 @@ export const EXERCISES: Exercise[] = [
     id: 'home-standing-lat-pushdown',
     name: 'Home Standing Lat Pushdown',
     category: 'pull',
-    muscles: { back: 1 },
+    muscles: { back: 1, triceps: 0.3 },
     aliases: ['home standing lat pushdown', 'home standing lat push down', 'home straight arm pulldown'],
   },
   {
